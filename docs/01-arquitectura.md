@@ -462,7 +462,7 @@ Estimación para un video de 1 hora en una máquina de 8 núcleos. **Se mide en 
 | Archivos | MinIO (Docker) | Cloudflare R2 |
 | Worker | Contenedor Docker con Docker Desktop (Windows), la misma imagen que en despliegue | Trigger.dev (máquinas grandes) o VPS con Docker — a decidir con datos de la Fase 2 |
 | Dependencias del worker | Dentro de la imagen Docker: FFmpeg, MediaPipe, Playwright + Chromium, tipografías | La misma imagen |
-| Repositorio | GitHub privado personal | Se transfiere a la organización de AEO.co en la Fase 4 (RNF-09) |
+| Repositorio | GitHub público personal | Se transfiere a la organización de AEO.co en la Fase 4 (RNF-09) |
 | Errores | logs en consola | Sentry en web y worker |
 
 Si se elige Trigger.dev, el worker deja de sondear la tabla y cada paso se dispara como tarea; la tabla `job_steps` se mantiene como registro de estado para la UI. Por eso el orquestador separa "decidir qué paso sigue" de "cómo se ejecuta".
@@ -532,7 +532,7 @@ aeo-content-engine/
 - Audio y documentos como entrada en la Fase 3 (§6).
 - Modelos: Sonnet para generar y Haiku para validar. El identificador exacto de cada modelo va en variables de entorno (`CLAUDE_MODEL_GENERATE`, `CLAUDE_MODEL_VALIDATE`), no en el código.
 - Worker en Docker Desktop desde el MVP.
-- Repo privado personal, transferido a AEO.co en la Fase 4.
+- Repo público personal, transferido a AEO.co en la Fase 4.
 - Estilo de arquitectura: monolito modular + worker con cola (§2.1).
 - Multiinquilino (SaaS) fuera del MVP: una sola organización, sin `org_id` (§2.4).
 - Extensibilidad: tipos de pieza como plugins, eventos de dominio con outbox y funciones activables por cliente (§2.5).

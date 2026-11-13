@@ -116,7 +116,7 @@ La Fase 1 queda en 4 sprints (8 semanas) en lugar de las 4 a 5 semanas del resum
 3. Crear las carpetas `apps/`, `worker/`, `packages/`, `supabase/`, `templates/`.
 4. Crear `pnpm-workspace.yaml` (le dice a pnpm dónde están las partes) y el `package.json` de la raíz.
 5. Crear `.env.example` con los nombres de las variables (sin valores reales) y tu `.env` con las claves de AssemblyAI y Claude.
-6. Crear el repo privado en tu GitHub, subir el primer commit y proteger la rama `main`. ✔ Se ve en GitHub sin el `.env`.
+6. Crear el repo público en tu GitHub, subir el primer commit y proteger la rama `main`. ✔ Se ve en GitHub sin el `.env`.
 
 **Terminaste cuando:** el repo está en GitHub con la estructura y sin claves.
 

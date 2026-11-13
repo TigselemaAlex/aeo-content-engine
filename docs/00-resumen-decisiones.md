@@ -54,7 +54,7 @@ El operador revisa, corrige con comentarios o regenera, y envía el paquete. Hay
 | Ediciones manuales | Cuentan como corrección: se guardan en la memoria y la pieza no cuenta como "aprobada sin cambios" | La métrica refleja el trabajo real del operador |
 | Ejemplos del perfil | Los marca el admin desde el historial; también puede subir ejemplos externos | Control de calidad de lo que Claude imita |
 | Worker en local | Contenedor Docker con Docker Desktop (Windows), la misma imagen que en despliegue | Evita diferencias entre la máquina del desarrollador y el servidor |
-| Repositorio | GitHub privado personal; se transfiere a la organización de AEO.co en la Fase 4 | Arrancar sin depender de la agencia y cumplir RNF-09 al final |
+| Repositorio | GitHub público personal (decidido el 13 nov 2026; permite proteger `main` sin plan de pago); se transfiere a la organización de AEO.co en la Fase 4 | Arrancar sin depender de la agencia y cumplir RNF-09 al final |
 | Instrucciones para Claude Code | `CLAUDE.md` y `.claude/` (skills, agentes, hooks) se versionan y viajan con el repo; la forma de trabajo personal vive en `.claude/rules/forma-de-trabajo.md`, cargada por `CLAUDE.local.md`, y queda fuera de git | Las reglas del proyecto le sirven a quien lo herede; las preferencias de trato no, y el repo pasa a la agencia (RNF-09) |
 | Audio y documentos como entrada | Fase 3 | Reutilizan el pipeline de texto sin trabajo de video |
 | App web | Next.js + React + TypeScript | Stack sugerido y fuerte del desarrollador |
