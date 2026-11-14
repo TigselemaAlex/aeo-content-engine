@@ -6,9 +6,9 @@ Content Engine de AEO.co: app web interna donde el operador sube el video largo 
 
 ## Estado
 
-Repo **solo de diseño**: `docs/`, `materials/`, `design/`. No existen `apps/web/`, `worker/`, `packages/`, `supabase/` ni `package.json`, así que **ningún comando de abajo funciona todavía**; los crea T1.2. Tampoco hay git inicializado.
+Monorepo con su esqueleto (T1.2): `apps/`, `worker/`, `packages/`, `supabase/` y `templates/` existen pero están vacías, y el `package.json` de la raíz todavía no tiene scripts, así que **ningún comando de abajo funciona todavía**; cada script se agrega en la tarea que crea lo que necesita. Repo público en GitHub con `main` protegida: todo cambio entra por rama y pull request.
 
-**Progreso:** última tarea cerrada **T1.1** (13 nov 2026) · siguiente **T1.2**. Registro completo en `docs/progreso.md`; al cerrar una tarea se agrega ahí una línea y se reemplaza esta.
+**Progreso:** última tarea cerrada **T1.2** (13 nov 2026) · siguiente **T1.3**. Registro completo en `docs/progreso.md`; al cerrar una tarea se agrega ahí una línea y se reemplaza esta.
 
 ## Dónde está el resto
 
