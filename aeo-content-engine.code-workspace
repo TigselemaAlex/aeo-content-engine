@@ -1,0 +1,45 @@
+{
+  // Open this file (File > Open Workspace from File) instead of the folder.
+  // Each package is its own root, so Pylance finds worker/.venv and worker/pyproject.toml.
+  "folders": [
+    { "name": "root", "path": "." },
+    { "name": "worker", "path": "worker" }
+  ],
+  "settings": {
+    // Patterns are relative to each folder: this only hides worker/ inside "root",
+    // so it is not shown (or analyzed) twice.
+    "files.exclude": {
+      "worker/": true,
+      // Python bytecode cache: generated on every run, never edited by hand.
+      "**/__pycache__": true
+    },
+    "python.analysis.exclude": ["worker"],
+
+    // Python: autocomplete and auto-import from installed libraries.
+    "python.analysis.autoImportCompletions": true,
+    "python.analysis.indexing": true,
+    "python.terminal.activateEnvironment": true,
+    "[python]": {
+      "editor.defaultFormatter": "charliermarsh.ruff",
+      "editor.formatOnSave": true,
+      "editor.codeActionsOnSave": {
+        "source.organizeImports": "explicit"
+      }
+    },
+
+    // TypeScript (apps/web, packages/*): auto-import suggestions.
+    "typescript.suggest.autoImports": true,
+    "javascript.suggest.autoImports": true,
+    "typescript.updateImportsOnFileMove.enabled": "always"
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-python.python",
+      "ms-python.vscode-pylance",
+      "charliermarsh.ruff",
+      "dbaeumer.vscode-eslint",
+      "esbenp.prettier-vscode",
+      "bradlc.vscode-tailwindcss"
+    ]
+  }
+}

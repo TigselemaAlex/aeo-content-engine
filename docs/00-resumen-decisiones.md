@@ -60,6 +60,8 @@ El operador revisa, corrige con comentarios o regenera, y envía el paquete. Hay
 | App web | Next.js + React + TypeScript | Stack sugerido y fuerte del desarrollador |
 | Idioma del código | Inglés en nombres, comentarios, configuración, commits y logs; `docs/` en español | El repo pasa a la agencia (RNF-09), cuyo equipo trabaja en inglés |
 | Versión de Node.js | Node.js 26 (LTS) | La 22 está por terminar su soporte; la 26 ya es LTS y es la instalada |
+| Tipos en Python | Pyright en modo `strict` en el worker (`src` y `tests`) | Detecta errores de tipos desde el principio, cuando todavía hay poco código que ajustar |
+| Archivo `.env` | Uno solo, en la raíz del monorepo; el worker lo lee como `../.env` (un `worker/.env` opcional lo sobrescribe) | Las claves se escriben una vez para la web y el worker |
 | IA de texto | Claude API: Sonnet 5.5 para generar, Haiku 5.5 para validar, con caché de prompts. El identificador exacto de cada modelo va en variables de entorno (`CLAUDE_MODEL_GENERATE`, `CLAUDE_MODEL_VALIDATE`) | Cada modelo en la tarea que le corresponde; cambiar de versión no requiere tocar código |
 | Carruseles y gráficos | Plantillas HTML por cliente renderizadas a PNG con Playwright | Se editan como HTML, sin herramientas de diseño |
 | B-roll | Material propio del cliente y Pexels como respaldo, activable por cliente; prioridad P1 | Se agrega después de tener los clips básicos funcionando |

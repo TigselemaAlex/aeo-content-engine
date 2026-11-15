@@ -19,7 +19,7 @@ Define cómo se organiza el código: el estilo, las carpetas, qué puede importa
 | Acceso a datos | Sin ORM: supabase-js con tipos generados; psycopg + Pydantic en el worker | Resumen de decisiones |
 | Contratos compartidos | Los modelos Pydantic del worker son la fuente; se exportan a JSON Schema y de ahí a tipos de TypeScript y esquemas zod | Una sola definición para Claude, worker y web |
 | Reglas de dependencia | Se verifican en CI: dependency-cruiser (TypeScript) e import-linter (Python) | Que la arquitectura no se degrade con el tiempo |
-| Calidad | TypeScript estricto + ESLint + Prettier; Ruff (lint y formato) + Pyright | Herramientas estándar de cada lenguaje |
+| Calidad | TypeScript estricto + ESLint + Prettier; Ruff (lint y formato) + Pyright en modo estricto | Herramientas estándar de cada lenguaje |
 | Pruebas | Vitest y Playwright (e2e) en la web; pytest en el worker; pgTAP para SQL, RLS y `rpc` | §8 |
 
 ---
@@ -307,7 +307,7 @@ Los archivos generados se guardan en el repo. CI los vuelve a generar y falla si
 | Pasos | `modulo.accion` o `tipo.accion` (`clip.compose`), igual en código y en `job_steps.step_type` |
 | Errores | Worker: `RetryableError`, `PermanentError`, `BudgetExceeded`, `NeedsConfirmation` (`04-worker.md` §6.1). Web: las Server Actions devuelven `{ ok, data }` o `{ ok: false, error }` con un mensaje legible, nunca lanzan al cliente |
 | Logs | JSON con `job_id`, `piece_id`, `step_id`. Nunca claves ni contenido de clientes completo |
-| Configuración | Solo por variables de entorno; `.env.example` en la raíz con todas, documentadas |
+| Configuración | Solo por variables de entorno; `.env.example` en la raíz con todas, documentadas. Un único `.env` en la raíz: el worker lo lee como `../.env` con pydantic-settings (un `worker/.env` opcional lo sobrescribe) y se detiene con un mensaje claro si falta una clave |
 | Fechas | `timestamptz` en UTC en la base; se muestran en la zona del usuario |
 | Textos de la UI | En inglés (RNF-07), centralizados por módulo para cambiarlos fácil |
 | Idioma del código | Todo en inglés: nombres, comentarios, archivos de configuración (`.gitignore`, `.env.example`), mensajes de commit y de log. Los documentos de `docs/` siguen en español |
