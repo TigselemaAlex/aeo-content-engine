@@ -317,7 +317,7 @@ output_schema: PostOutput   # modelo Pydantic
 
 Un set pequeño y fijo, en `worker/evals/`:
 
-- 2 o 3 transcripciones reales (Guidepost y otro cliente), con su perfil y spec.
+- 2 o 3 transcripciones con su perfil y spec: mientras no haya videos de clientes, la de la grabación propia y la del video largo de prueba con el perfil y el spec de Guidepost; se reemplazan por transcripciones reales cuando la agencia las comparta.
 - Un script que corre cada prompt y mide:
   - % de salidas válidas al primer intento,
   - % que pasan la verificación de cifras y citas,

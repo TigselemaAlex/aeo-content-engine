@@ -536,7 +536,7 @@ aeo-content-engine/
 - Estilo de arquitectura: monolito modular + worker con cola (§2.1).
 - Multiinquilino (SaaS) fuera del MVP: una sola organización, sin `org_id` (§2.4).
 - Extensibilidad: tipos de pieza como plugins, eventos de dominio con outbox y funciones activables por cliente (§2.5).
-- Material para la Fase 0: ya hay videos reales y Edit Specs de la agencia.
+- Material de prueba: grabación propia, video largo CC BY y, para la prueba final, un video real del cliente; Edit Spec real de Guidepost (`00-resumen-decisiones.md`, "Material de prueba").
 - Gráficos animados explicativos fuera de alcance; Edit Spec con reglas base + cliente (`03-edicion-de-clips.md`).
 - Acceso a datos sin ORM: supabase-js con tipos generados y funciones `rpc`; psycopg + Pydantic en el worker.
 

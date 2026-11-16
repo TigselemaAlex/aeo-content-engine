@@ -369,7 +369,7 @@ Se mide en la Fase 0.
 
 **Objetivo:** demostrar con videos reales que el pipeline propio produce clips aceptables antes de construir la app.
 
-**Material:** videos de Guidepost (Kyle, una persona a cámara, grabación horizontal) y su Edit Spec.
+**Material:** una grabación propia del mismo tipo que los videos de Guidepost (una persona a cámara, grabación horizontal, en inglés) y el Edit Spec de Guidepost. La agencia no puede compartir videos de clientes por ahora (`00-resumen-decisiones.md`, "Material de prueba").
 
 **Forma:** un script de línea de comandos en el worker, sin base de datos ni web: `python -m content_engine.clips.prototype video.mp4 spec.json decision.json`. La transcripción se pide una vez a AssemblyAI y se guarda en un archivo.
 

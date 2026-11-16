@@ -85,8 +85,10 @@ La Fase 1 queda en 4 sprints (8 semanas) en lugar de las 4 a 5 semanas del resum
 
 # Sprint 1 · Preparar todo y primeros pasos con video
 
-**Objetivo:** tener el proyecto armado en tu computadora, transcribir un video real y cortar un tramo con FFmpeg desde Python.
-**Al final muestras:** un script que transcribe un video de Kyle y otro que corta un tramo exacto por palabras.
+**Objetivo:** tener el proyecto armado en tu computadora, transcribir un video y cortar un tramo con FFmpeg desde Python.
+**Al final muestras:** un script que transcribe tu grabación de prueba y otro que corta un tramo exacto por palabras.
+
+> **Material de prueba.** La agencia no puede compartir videos de clientes por ahora. Usamos tres niveles (`00-resumen-decisiones.md`, "Material de prueba"): tu **grabación propia** de 2–3 min para los Sprints 1 y 2, un **video largo de prueba** de 1 h o más con licencia CC BY desde el Sprint 4, y un **video real del cliente** para la prueba final (T6.5). El Edit Spec de Guidepost se sigue usando como spec de prueba.
 
 ### T1.1 · Instalar las herramientas
 `preparacion` · ~4 h
@@ -134,21 +136,21 @@ La Fase 1 queda en 4 sprints (8 semanas) en lugar de las 4 a 5 semanas del resum
 
 **Terminaste cuando:** `ruff`, `pyright` y `pytest` pasan y el comando responde.
 
-### T1.4 · Transcribir un video de Kyle
+### T1.4 · Transcribir tu grabación de prueba
 `ia` · `worker` · ~8 h
 **Lee antes:** `03-edicion-de-clips.md` §3.
 
 **Qué vas a construir:** un comando que extrae el audio de un video, lo envía a AssemblyAI y guarda la transcripción con tiempos por palabra.
 **Qué vas a aprender:** usar FFmpeg desde Python, llamar a una API externa y modelar datos con Pydantic.
 
-1. Copiar un video de Guidepost a `worker/tests/fixtures/` (no se sube a git si pesa mucho; se anota en el `.gitignore`).
+1. Grabarte 2–3 min en inglés, en horizontal, hablando a cámara, y copiar el video a `worker/tests/fixtures/` (el `.gitignore` ya evita que se suban los videos).
 2. Extraer el audio con FFmpeg desde Python usando `subprocess`: mono, 16 kHz, `.m4a`. ✔ El archivo se escucha bien y pesa mucho menos que el video.
-3. Instalar el SDK de AssemblyAI y pedir la transcripción con **muletillas** ("um", "uh") e **identificación de hablantes**, y con el glosario (`Guidepost`, `AEO`) como vocabulario. ✔ Llega el texto.
+3. Instalar el SDK de AssemblyAI y pedir la transcripción con **muletillas** ("um", "uh") e **identificación de hablantes**, y con un glosario (`AEO`, `ChatGPT`) como vocabulario. ✔ Llega el texto.
 4. Crear los modelos Pydantic `Word` (texto, inicio en ms, fin en ms, hablante, confianza, si es muletilla) y `Transcript`.
 5. Convertir la respuesta de AssemblyAI a tu `Transcript` y guardarla como JSON. *Este paso de "traducir" la respuesta del proveedor a un formato propio es lo que permite cambiar de proveedor sin romper el resto.* ✔ El JSON tiene índice, texto y tiempos por palabra.
 6. Imprimir un resumen: número de palabras, duración, cuántas muletillas.
 
-**Terminaste cuando:** tienes `transcript.json` de un video real y entiendes cada campo.
+**Terminaste cuando:** tienes `transcript.json` de tu grabación y entiendes cada campo.
 
 ### T1.5 · Timeline: de palabras a cortes (lógica pura)
 `video` · `pruebas` · ~12 h
@@ -185,14 +187,14 @@ La Fase 1 queda en 4 sprints (8 semanas) en lugar de las 4 a 5 semanas del resum
 
 # Sprint 2 · Prototipo de clip (Fase 0)
 
-**Objetivo:** de un video horizontal de Kyle a un clip vertical con encuadre a la cara, zooms, subtítulos en Figtree y audio normalizado. La decisión de qué cortar la toma Claude.
+**Objetivo:** de tu grabación horizontal a un clip vertical con encuadre a la cara, zooms, subtítulos en Figtree y audio normalizado. La decisión de qué cortar la toma Claude.
 **Al final muestras:** 3 clips de un mismo video, comparados con la muestra aprobada del 5 nov, y un informe corto.
 
 ### T2.1 · Detectar la cara
 `video` · ~8 h
 **Lee antes:** `03-edicion-de-clips.md` §5.3 (pasos 1–2).
 
-**Qué vas a construir:** un análisis que dice dónde está la cara de Kyle en cada momento.
+**Qué vas a construir:** un análisis que dice dónde está la cara de quien habla en cada momento.
 **Qué vas a aprender:** leer fotogramas de un video y usar MediaPipe.
 
 1. Instalar MediaPipe y OpenCV. Descargar el modelo de detección de caras.
@@ -218,7 +220,7 @@ La Fase 1 queda en 4 sprints (8 semanas) en lugar de las 4 a 5 semanas del resum
 6. **Puentes de corte:** en cada corte, alternar entre 100 % y ~110 %.
 7. Generar la lista de *keyframes* de recorte (tiempo, x, y, ancho, alto).
 
-**Terminaste cuando:** las pruebas pasan y el camino generado sobre el video real se ve estable en un gráfico simple (x en el tiempo).
+**Terminaste cuando:** las pruebas pasan y el camino generado sobre tu grabación se ve estable en un gráfico simple (x en el tiempo).
 
 ### T2.3 · Recorte variable con FFmpeg
 `video` · ~10 h
@@ -228,7 +230,7 @@ La Fase 1 queda en 4 sprints (8 semanas) en lugar de las 4 a 5 semanas del resum
 **Qué vas a aprender:** filtros de FFmpeg y cómo darle instrucciones que cambian en el tiempo.
 
 1. Generar el archivo de comandos de tiempo (`sendcmd`) desde los keyframes.
-2. Aplicar el filtro de recorte con ese archivo y escalar a 1080x1920. ✔ El video vertical sigue a Kyle.
+2. Aplicar el filtro de recorte con ese archivo y escalar a 1080x1920. ✔ El video vertical sigue la cara.
 3. Revisar que los zooms y los puentes se vean fluidos, sin saltos ni temblores.
 4. Si no queda fluido: probar el plan B (recortar cuadro por cuadro en Python con PyAV y pasarlo a FFmpeg) y comparar.
 5. Anotar qué opción quedó y por qué.
@@ -394,7 +396,7 @@ La Fase 1 queda en 4 sprints (8 semanas) en lugar de las 4 a 5 semanas del resum
 # Sprint 4 · Subir un video y procesarlo
 
 **Objetivo:** el operador sube un video y ve en vivo cómo avanza hasta tener la transcripción.
-**Al final muestras:** subir un video de Kyle de 15–20 min y ver los pasos cambiar solos en la pantalla.
+**Al final muestras:** subir el video largo de prueba (1 h o más) y ver los pasos cambiar solos en la pantalla.
 
 ### T4.1 · MinIO y subida en partes
 `web` · `preparacion` · ~10 h
@@ -453,14 +455,14 @@ La Fase 1 queda en 4 sprints (8 semanas) en lugar de las 4 a 5 semanas del resum
 4. Suscripción a Realtime que actualiza la pantalla sola. ✔ Ves pasar el trabajo de `queued` a `processing` sin recargar.
 5. Aviso de calidad dudosa con botón para confirmar o cancelar.
 
-**Terminaste el sprint cuando:** subes un video real y ves la transcripción terminada sin tocar nada.
+**Terminaste el sprint cuando:** subes el video largo de prueba y ves la transcripción terminada sin tocar nada.
 
 ---
 
 # Sprint 5 · Piezas de texto y revisión
 
 **Objetivo:** generar los posts, el blog y la newsletter, y revisarlos en la pantalla de revisión.
-**Al final muestras:** del video de Kyle salen las piezas de texto; apruebas unas, comentas otra y se regenera.
+**Al final muestras:** del video largo de prueba, con el perfil de Guidepost, salen las piezas de texto; apruebas unas, comentas otra y se regenera.
 
 ### T5.1 · Tablas de piezas, versiones y correcciones
 `base-de-datos` · ~6 h
@@ -564,7 +566,7 @@ La Fase 1 queda en 4 sprints (8 semanas) en lugar de las 4 a 5 semanas del resum
 ### T6.5 · Prueba con un video real y demo
 `documentacion` · ~10 h
 
-1. Procesar un video completo de Kyle de punta a punta.
+1. Procesar de punta a punta un video real del cliente (crudo, de más de 1 h). Si la agencia todavía no lo comparte, usar el video largo de prueba y anotar en la lista de pendientes que falta la validación con un video real.
 2. Medir: de fin de subida a piezas listas (meta: menos de 60 min para un video de 1 h).
 3. Grabar la demo de la Fase 1.
 4. Actualizar la documentación: cómo instalar y cómo editar los prompts (RNF-10, versión inicial).
