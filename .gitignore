@@ -25,6 +25,7 @@ __pycache__/
 *.mkv
 *.wav
 *.mp3
+*.m4a
 
 # Supabase CLI
 supabase/.temp
