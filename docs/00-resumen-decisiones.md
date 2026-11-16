@@ -70,6 +70,7 @@ El operador revisa, corrige con comentarios o regenera, y envía el paquete. Hay
 | Criterios de aprobación | Cada fase se aprueba por sus requisitos funcionando con un video real; las métricas de uso quedan como meta conjunta | Las métricas dependen también de la operación de la agencia |
 | Ajustes de alcance | Links de YouTube, Zoom, Loom y Google Drive pasan a P1 (P0 es solo subida directa); RF-16 entrega ZIP + link compartible en lugar de copiar a Drive; el login con Google (RF-01) pasa a correo y contraseña; "aprende de cada corrección" significa guardar correcciones, usarlas como ejemplos y proponer reglas; el tiempo de 60 minutos cuenta desde que termina la subida; "0 comentarios repetidos" pasa a "una regla no reaparece más de 1 vez por cliente" | Requisitos verificables y realistas |
 | Demo | Un video de 15 a 20 minutos, las piezas de texto y 2 o 3 clips con subtítulos, logo y reencuadre | Mostrar el flujo completo funcionando |
+| Material de prueba (16 nov 2026) | Tres niveles: **grabación propia** de 2–3 min (Alex, en inglés, horizontal, una persona a cámara) para los Sprints 1 y 2, y un recorte suyo de 20 s como video de `worker/tests/fixtures/`; **video largo de prueba** de 1 h o más (inglés, una persona a cámara, licencia CC BY) desde el Sprint 4 para medir tiempos, costos y la subida en partes; **video real del cliente** para la prueba final (T6.5). Ningún video de terceros se sube al repo. El Edit Spec de Guidepost se sigue usando como spec de prueba | La agencia no puede compartir videos de clientes por ahora. Los videos reales son crudos de más de 1 h; el límite de 2 h del probe se mantiene |
 
 ## Arquitectura (resumen)
 
@@ -82,7 +83,7 @@ Claude es el cerebro y el worker son las manos. Claude nunca toca el video: lee 
 - **Almacenamiento de archivos:** MinIO en Docker.
 - **Worker:** contenedor Docker con Python que toma pasos de una cola en Postgres.
 - **Dependencias del sistema:** dentro de la imagen del worker (FFmpeg, MediaPipe, Playwright con Chromium, tipografías).
-- **Material de prueba:** ya hay videos reales y Edit Specs de la agencia para la Fase 0.
+- **Material de prueba:** Edit Spec real de Guidepost en `materials/`; videos propios y Creative Commons hasta tener uno real del cliente (ver "Material de prueba" en las decisiones).
 
 ## API keys y credenciales necesarias
 
