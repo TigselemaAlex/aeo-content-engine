@@ -4,6 +4,7 @@ import typer
 from pydantic import ValidationError
 
 from content_engine.adapters.media.ffmpeg import extract_audio
+from content_engine.adapters.transcription.assemblyai import transcribe
 from content_engine.config import Settings, get_settings
 
 app = typer.Typer()
@@ -35,3 +36,15 @@ def extract_audio_command(video: Path, output: Path) -> None:
     extract_audio(video_path=video, audio_path=output)
     size_mb = output.stat().st_size / 1_000_000
     print(f"Audio saved to {output} ({size_mb:.1f} MB)")
+
+
+@app.command("transcribe")
+def transcribe_audio_command(audio: Path) -> None:
+    settings = load_settings()
+    transcript = transcribe(
+        audio_path=audio,
+        api_key=settings.assemblyai_api_key.get_secret_value(),
+        glossary=["AEO", "ChatGPT"],
+    )
+
+    print(transcript)
