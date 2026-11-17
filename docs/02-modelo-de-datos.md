@@ -277,7 +277,7 @@ Check: exactamente uno de `piece_version_id` o `external_content`. Los ejemplos 
 | `language` | text | |
 | `duration_ms` | int | |
 | `text` | text | texto completo |
-| `words` | jsonb | `[{ "i":0, "text":"Hello", "start_ms":120, "end_ms":380, "speaker":"A", "confidence":0.98 }]` |
+| `words` | jsonb | `[{ "i":0, "text":"Hello", "start_ms":120, "end_ms":380, "speaker":"A", "confidence":0.98, "is_disfluency":false }]` |
 | `speakers` | jsonb | etiquetas y nombres si se conocen |
 | `raw_storage_key` | text | respuesta cruda del proveedor en MinIO/R2 |
 
