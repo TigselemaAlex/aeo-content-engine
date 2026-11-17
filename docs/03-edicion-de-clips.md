@@ -127,7 +127,7 @@ Cuando el worker procesa un clip, ya tiene:
 | Recursos | `brand_assets` | fuentes, logo, música, sfx, plantillas |
 | Comentario | `corrections` | solo en regeneraciones |
 
-La transcripción se pide a AssemblyAI con las muletillas incluidas (*disfluencies*) y con el vocabulario del cliente (nombres de marca, productos) para que se escriban bien. El vocabulario sale de `voice.glossary`, un campo nuevo del perfil.
+La transcripción se pide a AssemblyAI con las muletillas incluidas (*disfluencies*) y con el vocabulario del cliente (nombres de marca, productos) para que se escriban bien. El vocabulario sale de `voice.glossary`, un campo nuevo del perfil, y se envía como `keyterms_prompt`. AssemblyAI no marca qué palabras son muletillas: el adaptador las marca con `is_disfluency` usando la lista del dominio de `ingest` (decisión "Muletillas y glosario" en `00`).
 
 ---
 

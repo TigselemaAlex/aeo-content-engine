@@ -40,6 +40,7 @@ def extract_audio_command(video: Path, output: Path) -> None:
 
 @app.command("transcribe")
 def transcribe_audio_command(audio: Path, output: Path) -> None:
+    """Extract the transcription into a json file"""
     settings = load_settings()
     transcript = transcribe(
         audio_path=audio,
@@ -52,5 +53,5 @@ def transcribe_audio_command(audio: Path, output: Path) -> None:
     print(
         f"Transcript saved to {output} "
         f"({len(transcript.words)} words - "
-        f"{transcript.duration_ms / 1000:.1f} - {fillers_count} fillers)"
+        f"{transcript.duration_ms / 1000:.1f}s - {fillers_count} fillers)"
     )

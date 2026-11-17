@@ -18,9 +18,9 @@ def test_duration_is_converted_to_milliseconds() -> None:
     assert transcript.duration_ms == 2500
 
 
-def test_words_are_numbered_id_order() -> None:
+def test_words_are_numbered_in_order() -> None:
     transcript = to_transcript(raw=RAW_RESPONSE)
-    assert [i for i, _ in enumerate(transcript.words)] == [0, 1, 2]
+    assert [w.i for w in transcript.words] == [0, 1, 2]
 
 
 def test_word_times_are_mapped() -> None:

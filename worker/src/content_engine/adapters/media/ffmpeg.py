@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 def extract_audio(video_path: Path, audio_path: Path) -> None:
-    """Exctract a mono 16kHz ACC auido track from video."""
+    """Extract a mono 16kHz ACC auido track from video."""
 
     args = [
         "ffmpeg",
@@ -21,5 +21,7 @@ def extract_audio(video_path: Path, audio_path: Path) -> None:
         "64k",
         str(audio_path),
     ]
-
-    subprocess.run(args, check=True, capture_output=True)
+    try:
+        subprocess.run(args, check=True, capture_output=True, timeout=600)
+    except subprocess.CalledProcessError as error:
+        raise RuntimeError(f"... {error.stderr.decode()}") from error
