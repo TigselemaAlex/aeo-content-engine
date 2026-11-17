@@ -48,4 +48,9 @@ def transcribe_audio_command(audio: Path, output: Path) -> None:
     )
     transcript_to_json = transcript.model_dump_json(indent=2)
     output.write_text(transcript_to_json, encoding="utf-8")
-    print(f"Transcript saved to {output} ({len(transcript.words)} words)")
+    fillers_count = sum(1 for w in transcript.words if w.is_disfluency)
+    print(
+        f"Transcript saved to {output} "
+        f"({len(transcript.words)} words - "
+        f"{transcript.duration_ms / 1000:.1f} - {fillers_count} fillers)"
+    )
