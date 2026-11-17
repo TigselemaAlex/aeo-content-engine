@@ -2,6 +2,8 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+FILLER_WORDS = frozenset({"um", "umm", "uh", "uhm", "hmm", "er", "erm"})
+
 
 class Word(BaseModel):
     i: int = Field(ge=0)
@@ -30,3 +32,7 @@ class Transcript(BaseModel):
     words: list[Word]
 
     model_config = ConfigDict(frozen=True)
+
+
+def is_filler_word(text: str) -> bool:
+    return text.lower().strip(".,?!") in FILLER_WORDS

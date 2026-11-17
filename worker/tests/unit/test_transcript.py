@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from content_engine.modules.ingest.domain.transcript import Word
+from content_engine.modules.ingest.domain.transcript import Word, is_filler_word
 
 
 def test_word_accepts_valid_values() -> None:
@@ -42,3 +42,15 @@ def test_word_rejects_end_before_start() -> None:
             confidence=0.9,
             is_disfluency=False,
         )
+
+
+def test_filler_word_is_detected_with_punctuation() -> None:
+    assert is_filler_word("Um,")
+
+
+def test_normal_word_is_not_a_filler() -> None:
+    assert not is_filler_word("AEO")
+
+
+def test_word_that_starts_like_a_filler_is_not_one() -> None:
+    assert not is_filler_word("umbrella")
