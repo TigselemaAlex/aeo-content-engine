@@ -39,12 +39,13 @@ def extract_audio_command(video: Path, output: Path) -> None:
 
 
 @app.command("transcribe")
-def transcribe_audio_command(audio: Path) -> None:
+def transcribe_audio_command(audio: Path, output: Path) -> None:
     settings = load_settings()
     transcript = transcribe(
         audio_path=audio,
         api_key=settings.assemblyai_api_key.get_secret_value(),
         glossary=["AEO", "ChatGPT"],
     )
-
-    print(transcript)
+    transcript_to_json = transcript.model_dump_json(indent=2)
+    output.write_text(transcript_to_json, encoding="utf-8")
+    print(f"Transcript saved to {output} ({len(transcript.words)} words)")

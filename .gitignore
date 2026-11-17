@@ -34,3 +34,6 @@ supabase/.branches
 # OS files
 Thumbs.db
 .DS_Store
+
+# Personal files
+worker/tests/fixtures/example-*
