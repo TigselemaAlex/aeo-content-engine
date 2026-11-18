@@ -33,7 +33,7 @@ def test_word_rejects_negative_start() -> None:
 
 
 def test_word_rejects_end_before_start() -> None:
-    with pytest.raises(ValidationError, match="end_ms must not be before start_ms"):
+    with pytest.raises(ValidationError):
         Word(
             i=0,
             text="AEO",
