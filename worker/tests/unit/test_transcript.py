@@ -1,7 +1,8 @@
 import pytest
 from pydantic import ValidationError
 
-from content_engine.modules.ingest.domain.transcript import Word, is_filler_word
+from content_engine.modules.ingest.domain.transcript import is_filler_word
+from content_engine.shared.transcript import Word
 
 
 def test_word_accepts_valid_values() -> None:
