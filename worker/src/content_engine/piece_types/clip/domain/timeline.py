@@ -57,7 +57,7 @@ def segment_to_cut(segment: Segment, words: list[Word]) -> Cut:
     return Cut(start_ms=first.start_ms, end_ms=last.end_ms)
 
 
-def split_out_filters(segment: Segment, words: list[Word]) -> list[Segment]:
+def split_out_fillers(segment: Segment, words: list[Word]) -> list[Segment]:
     _check_segment_in_transcript(segment=segment, words=words)
 
     pieces: list[Segment] = []
@@ -74,4 +74,23 @@ def split_out_filters(segment: Segment, words: list[Word]) -> list[Segment]:
     if start is not None:
         pieces.append(Segment(from_word=start, to_word=segment.to_word))
 
+    return pieces
+
+
+def split_at_long_pauses(
+    segment: Segment, words: list[Word], pause_max_ms: int, keep_pauses_after: tuple[int, ...] = ()
+) -> list[Segment]:
+    _check_segment_in_transcript(segment=segment, words=words)
+
+    pieces: list[Segment] = []
+    start: int = segment.from_word
+
+    for k in range(segment.from_word, segment.to_word):
+        gap_ms = words[k + 1].start_ms - words[k].end_ms
+
+        if gap_ms > pause_max_ms and k not in keep_pauses_after:
+            pieces.append(Segment(from_word=start, to_word=k))
+            start = k + 1
+
+    pieces.append(Segment(from_word=start, to_word=segment.to_word))
     return pieces

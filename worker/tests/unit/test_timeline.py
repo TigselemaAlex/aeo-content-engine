@@ -6,21 +6,31 @@ from content_engine.piece_types.clip.domain.timeline import (
     Segment,
     Timeline,
     segment_to_cut,
-    split_out_filters,
+    split_at_long_pauses,
+    split_out_fillers,
 )
 from content_engine.shared.transcript import Word
 
 
+def make_word(i: int, start_ms: int, end_ms: int, filler: bool = False) -> Word:
+    return Word(
+        i=i,
+        text="um" if filler else f"word{i}",
+        start_ms=start_ms,
+        end_ms=end_ms,
+        speaker="A",
+        confidence=1.0,
+        is_disfluency=filler,
+    )
+
+
 def make_words(count: int, fillers: tuple[int, ...] = ()) -> list[Word]:
     return [
-        Word(
+        make_word(
             i=k,
-            text="um" if k in fillers else f"word{k}",
             start_ms=k * 1000,
             end_ms=k * 1000 + 500,
-            speaker="A",
-            confidence=1.0,
-            is_disfluency=k in fillers,
+            filler=k in fillers,
         )
         for k in range(count)
     ]
@@ -82,6 +92,48 @@ def test_segment_to_cut_rejects_segment_outside_transcript() -> None:
 def test_split_out_fillers(fillers: tuple[int, ...], expected: list[tuple[int, int]]) -> None:
     words = make_words(count=10, fillers=fillers)
 
-    pieces = split_out_filters(segment=Segment(from_word=0, to_word=9), words=words)
+    pieces = split_out_fillers(segment=Segment(from_word=0, to_word=9), words=words)
 
     assert [(piece.from_word, piece.to_word) for piece in pieces] == expected
+
+
+def words_with_long_pause_after_1() -> list[Word]:
+    return [
+        make_word(i=0, start_ms=0, end_ms=500),
+        make_word(i=1, start_ms=1000, end_ms=1500),
+        make_word(i=2, start_ms=3500, end_ms=4000),  # 2000ms after word 1
+        make_word(i=3, start_ms=4500, end_ms=5000),
+    ]
+
+
+def test_split_a_long_pauses() -> None:
+    words = words_with_long_pause_after_1()
+
+    pieces = split_at_long_pauses(
+        segment=Segment(from_word=0, to_word=3), words=words, pause_max_ms=500
+    )
+
+    assert pieces == [Segment(from_word=0, to_word=1), Segment(from_word=2, to_word=3)]
+
+
+def test_split_at_long_pauses_keeps_gap_equal_to_max() -> None:
+    words = make_words(4)
+
+    pieces = split_at_long_pauses(
+        segment=Segment(from_word=0, to_word=3), words=words, pause_max_ms=500
+    )
+
+    assert pieces == [Segment(from_word=0, to_word=3)]
+
+
+def test_split_at_long_pauses_respects_emphasis_pause() -> None:
+    words = words_with_long_pause_after_1()
+
+    pieces = split_at_long_pauses(
+        segment=Segment(from_word=0, to_word=3),
+        words=words,
+        pause_max_ms=500,
+        keep_pauses_after=(1,),
+    )
+
+    assert pieces == [Segment(from_word=0, to_word=3)]

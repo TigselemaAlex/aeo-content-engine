@@ -224,7 +224,7 @@ Convierte el JSON de decisiones en una lista de cortes del video original y en u
 
 1. Toma los `segments` en orden.
 2. Quita las muletillas (si `remove_fillers`) y los `extra_cuts`.
-3. Recorta las pausas mayores a `pause_max_ms` a ~150 ms, salvo las de `keep_pauses`.
+3. Parte el tramo en cada pausa mayor a `pause_max_ms`, salvo las de `keep_pauses`, igual que con una muletilla. No hay una duración de pausa propia: el silencio que queda lo forman los márgenes del punto 4 (≈ 120 + 60 = 180 ms).
 4. Ajusta cada corte al borde de palabra con un margen (≈ 60 ms antes, ≈ 120 ms después) para no cortar sílabas. Nunca corta en medio de una palabra.
 5. Aplica *J cuts*: en cada corte, el audio del tramo siguiente entra `j_cut_frames` antes que la imagen.
 6. Marca qué cortes necesitan "puente" (`cut_bridge`): en una sola cámara, un salto se disimula cambiando el encuadre (§5.3).
