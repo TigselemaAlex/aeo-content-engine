@@ -33,12 +33,24 @@ class Cut(BaseModel):
 
 class Timeline(BaseModel):
     cuts: list[Cut]
+    video_cuts: list[Cut]
 
     model_config = ConfigDict(frozen=True)
 
     @property
     def duration_ms(self) -> int:
         return sum(cut.end_ms - cut.start_ms for cut in self.cuts)
+
+    @model_validator(mode="after")
+    def check_video_cuts(self) -> Self:
+        if len(self.cuts) != len(self.video_cuts):
+            raise ValueError("video_cuts must be have one per audio cut")
+        video_cut_duration_ms = sum(
+            video_cut.end_ms - video_cut.start_ms for video_cut in self.video_cuts
+        )
+        if video_cut_duration_ms != self.duration_ms:
+            raise ValueError("video_vuts must last the same as the audio cuts")
+        return self
 
     def to_clip_ms(self, original_ms: int) -> int | None:
         cut_start_in_clip_ms = 0
@@ -121,3 +133,32 @@ def segment_to_padded_cut(
         end_ms = min(end_ms, next_word.start_ms)
 
     return Cut(start_ms=start_ms, end_ms=end_ms)
+
+
+def frames_to_ms(frames: int, fps: int = 30) -> int:
+    if frames < 0:
+        raise ValueError("frames mut not be negative")
+    if fps <= 0:
+        raise ValueError("fps mut be positive")
+
+    return round(frames * 1000 / fps)
+
+
+def add_j_cuts(cuts: list[Cut], j_cut_ms: int) -> list[Cut]:
+    if j_cut_ms < 0:
+        raise ValueError("j_cut_ms must not be negative")
+
+    last_index = len(cuts) - 1
+    video_cuts: list[Cut] = []
+
+    for k, cut in enumerate(cuts):
+        start_ms = cut.start_ms + (j_cut_ms if k > 0 else 0)
+        end_ms = cut.end_ms + (j_cut_ms if k < last_index else 0)
+
+        if end_ms <= start_ms:
+            raise ValueError(
+                f"cut {k} lasts {cut.end_ms - cut.start_ms} ms too short for {j_cut_ms} ms J cut"
+            )
+        video_cuts.append(Cut(start_ms=start_ms, end_ms=end_ms))
+
+    return video_cuts

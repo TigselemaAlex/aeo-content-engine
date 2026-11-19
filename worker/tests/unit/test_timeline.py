@@ -5,6 +5,8 @@ from content_engine.piece_types.clip.domain.timeline import (
     Cut,
     Segment,
     Timeline,
+    add_j_cuts,
+    frames_to_ms,
     segment_to_cut,
     segment_to_padded_cut,
     split_at_long_pauses,
@@ -48,7 +50,8 @@ def test_cut_with_invalid_times_order() -> None:
 
 
 def test_timeline_duration() -> None:
-    timeline = Timeline(cuts=[Cut(start_ms=0, end_ms=1000), Cut(start_ms=3000, end_ms=3500)])
+    cuts = [Cut(start_ms=0, end_ms=1000), Cut(start_ms=3000, end_ms=3500)]
+    timeline = Timeline(cuts=cuts, video_cuts=cuts)
 
     assert timeline.duration_ms == 1500
 
@@ -174,7 +177,8 @@ def test_segment_to_padded_cut_at_transcript_edges() -> None:
     ids=["first_cut", "second_cut", "in_removed_pause", "end_of_first_cut"],
 )
 def test_to_clip_ms_with_pause_dropped(original_ms: int, expected: int | None) -> None:
-    timeline = Timeline(cuts=[Cut(start_ms=0, end_ms=1000), Cut(start_ms=2000, end_ms=3500)])
+    cuts = [Cut(start_ms=0, end_ms=1000), Cut(start_ms=2000, end_ms=3500)]
+    timeline = Timeline(cuts=cuts, video_cuts=cuts)
 
     assert timeline.to_clip_ms(original_ms=original_ms) == expected
 
@@ -185,6 +189,49 @@ def test_to_clip_ms_with_pause_dropped(original_ms: int, expected: int | None) -
     ids=["hook_placed_first", "start_placed_after_hook"],
 )
 def test_to_clip_ms_follows_cut_order(original_ms: int, expected: int) -> None:
-    timeline = Timeline(cuts=[Cut(start_ms=5000, end_ms=6000), Cut(start_ms=0, end_ms=1000)])
+    cuts = [Cut(start_ms=5000, end_ms=6000), Cut(start_ms=0, end_ms=1000)]
+    timeline = Timeline(cuts=cuts, video_cuts=cuts)
 
     assert timeline.to_clip_ms(original_ms=original_ms) == expected
+
+
+def test_frames_to_ms() -> None:
+    assert frames_to_ms(frames=4) == 133
+    assert frames_to_ms(frames=5) == 167
+
+
+def test_add_j_cuts_shifts_each_join() -> None:
+    audio = [
+        Cut(start_ms=1000, end_ms=3000),
+        Cut(start_ms=5000, end_ms=6000),
+        Cut(start_ms=8000, end_ms=9000),
+    ]
+
+    assert add_j_cuts(cuts=audio, j_cut_ms=133) == [
+        Cut(start_ms=1000, end_ms=3133),
+        Cut(start_ms=5133, end_ms=6133),
+        Cut(start_ms=8133, end_ms=9000),
+    ]
+
+
+def test_add_j_cuts_single_cut_is_uncharged() -> None:
+    audio = [Cut(start_ms=1000, end_ms=3000)]
+    assert add_j_cuts(cuts=audio, j_cut_ms=133) == audio
+
+
+def test_add_j_cuts_rejects_last_cut_shorter_than_j_cut() -> None:
+    audio = [Cut(start_ms=0, end_ms=1000), Cut(start_ms=2000, end_ms=2100)]
+    with pytest.raises(ValueError, match="too short"):
+        add_j_cuts(cuts=audio, j_cut_ms=133)
+
+
+def test_timeline_keeps_audio_and_video_in_step() -> None:
+    audio = [Cut(start_ms=1000, end_ms=3000), Cut(start_ms=5000, end_ms=6000)]
+    timeline = Timeline(cuts=audio, video_cuts=add_j_cuts(cuts=audio, j_cut_ms=133))
+    assert timeline.duration_ms == 3000
+
+
+def test_timeline_rejects_video_cuts_with_other_duration() -> None:
+    audio = [Cut(start_ms=0, end_ms=1000)]
+    with pytest.raises(ValueError):
+        Timeline(cuts=audio, video_cuts=[Cut(start_ms=0, end_ms=900)])
