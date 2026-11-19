@@ -37,3 +37,6 @@ Thumbs.db
 
 # Personal files
 worker/tests/fixtures/example-*
+
+# VS
+.vscode

@@ -166,3 +166,25 @@ def test_segment_to_padded_cut_at_transcript_edges() -> None:
     cut = segment_to_padded_cut(segment=Segment(from_word=0, to_word=0), words=words)
 
     assert cut == Cut(start_ms=0, end_ms=620)
+
+
+@pytest.mark.parametrize(
+    ("original_ms", "expected"),
+    [(500, 500), (2500, 1500), (1500, None), (1000, 1000)],
+    ids=["first_cut", "second_cut", "in_removed_pause", "end_of_first_cut"],
+)
+def test_to_clip_ms_with_pause_dropped(original_ms: int, expected: int | None) -> None:
+    timeline = Timeline(cuts=[Cut(start_ms=0, end_ms=1000), Cut(start_ms=2000, end_ms=3500)])
+
+    assert timeline.to_clip_ms(original_ms=original_ms) == expected
+
+
+@pytest.mark.parametrize(
+    ("original_ms", "expected"),
+    [(5500, 500), (500, 1500)],
+    ids=["hook_placed_first", "start_placed_after_hook"],
+)
+def test_to_clip_ms_follows_cut_order(original_ms: int, expected: int) -> None:
+    timeline = Timeline(cuts=[Cut(start_ms=5000, end_ms=6000), Cut(start_ms=0, end_ms=1000)])
+
+    assert timeline.to_clip_ms(original_ms=original_ms) == expected

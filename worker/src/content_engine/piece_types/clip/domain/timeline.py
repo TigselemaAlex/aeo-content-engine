@@ -40,6 +40,14 @@ class Timeline(BaseModel):
     def duration_ms(self) -> int:
         return sum(cut.end_ms - cut.start_ms for cut in self.cuts)
 
+    def to_clip_ms(self, original_ms: int) -> int | None:
+        cut_start_in_clip_ms = 0
+        for cut in self.cuts:
+            if cut.start_ms <= original_ms <= cut.end_ms:
+                return cut_start_in_clip_ms + (original_ms - cut.start_ms)
+            cut_start_in_clip_ms += cut.end_ms - cut.start_ms
+        return None
+
 
 def _check_segment_in_transcript(segment: Segment, words: list[Word]) -> None:
     if segment.to_word >= len(words):
@@ -99,7 +107,6 @@ def split_at_long_pauses(
 def segment_to_padded_cut(
     segment: Segment, words: list[Word], pad_before_ms: int = 60, pad_after_ms: int = 120
 ) -> Cut:
-
     cut = segment_to_cut(segment=segment, words=words)
 
     start_ms = max(cut.start_ms - pad_before_ms, 0)
