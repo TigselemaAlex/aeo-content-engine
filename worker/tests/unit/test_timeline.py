@@ -6,6 +6,7 @@ from content_engine.piece_types.clip.domain.timeline import (
     Segment,
     Timeline,
     segment_to_cut,
+    segment_to_padded_cut,
     split_at_long_pauses,
     split_out_fillers,
 )
@@ -106,7 +107,7 @@ def words_with_long_pause_after_1() -> list[Word]:
     ]
 
 
-def test_split_a_long_pauses() -> None:
+def test_split_at_long_pauses_splits_on_2s_gap() -> None:
     words = words_with_long_pause_after_1()
 
     pieces = split_at_long_pauses(
@@ -137,3 +138,31 @@ def test_split_at_long_pauses_respects_emphasis_pause() -> None:
     )
 
     assert pieces == [Segment(from_word=0, to_word=3)]
+
+
+def test_segment_to_padded_cut_adds_full_padding() -> None:
+    words = make_words(5)
+
+    cut = segment_to_padded_cut(segment=Segment(from_word=1, to_word=2), words=words)
+
+    assert cut == Cut(start_ms=940, end_ms=2620)
+
+
+def test_segment_to_padded_cut_stops_at_close_neighbors() -> None:
+    words = [
+        make_word(i=0, start_ms=0, end_ms=500),
+        make_word(i=1, start_ms=530, end_ms=1000),
+        make_word(i=2, start_ms=1030, end_ms=1500),
+    ]
+
+    cut = segment_to_padded_cut(segment=Segment(from_word=1, to_word=1), words=words)
+
+    assert cut == Cut(start_ms=500, end_ms=1030)
+
+
+def test_segment_to_padded_cut_at_transcript_edges() -> None:
+    words = [make_word(i=0, start_ms=30, end_ms=500)]
+
+    cut = segment_to_padded_cut(segment=Segment(from_word=0, to_word=0), words=words)
+
+    assert cut == Cut(start_ms=0, end_ms=620)

@@ -94,3 +94,23 @@ def split_at_long_pauses(
 
     pieces.append(Segment(from_word=start, to_word=segment.to_word))
     return pieces
+
+
+def segment_to_padded_cut(
+    segment: Segment, words: list[Word], pad_before_ms: int = 60, pad_after_ms: int = 120
+) -> Cut:
+
+    cut = segment_to_cut(segment=segment, words=words)
+
+    start_ms = max(cut.start_ms - pad_before_ms, 0)
+    if segment.from_word > 0:
+        previous_word = words[segment.from_word - 1]
+        start_ms = max(start_ms, previous_word.end_ms)
+
+    end_ms = cut.end_ms + pad_after_ms
+
+    if segment.to_word < len(words) - 1:
+        next_word = words[segment.to_word + 1]
+        end_ms = min(end_ms, next_word.start_ms)
+
+    return Cut(start_ms=start_ms, end_ms=end_ms)
