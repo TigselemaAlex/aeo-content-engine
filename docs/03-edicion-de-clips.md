@@ -226,7 +226,7 @@ Convierte el JSON de decisiones en una lista de cortes del video original y en u
 2. Quita las muletillas (si `remove_fillers`) y los `extra_cuts`.
 3. Parte el tramo en cada pausa mayor a `pause_max_ms`, salvo las de `keep_pauses`, igual que con una muletilla. No hay una duración de pausa propia: el silencio que queda lo forman los márgenes del punto 4 (≈ 120 + 60 = 180 ms).
 4. Ajusta cada corte al borde de palabra con un margen (≈ 60 ms antes, ≈ 120 ms después) para no cortar sílabas. Nunca corta en medio de una palabra.
-5. Aplica *J cuts*: en cada corte, el audio del tramo siguiente entra `j_cut_frames` antes que la imagen.
+5. Aplica *J cuts*: en cada unión, el audio del tramo siguiente entra `j_cut_frames` antes que la imagen. Se usa el valor del medio del rango, siempre el mismo (`(mín + máx) // 2`: 4 fotogramas ≈ 133 ms a 30 fps), para que el paso dé el mismo resultado al repetirse. Los cortes de audio no cambian; el timeline guarda aparte los cortes de imagen (`video_cuts`): en cada unión, la imagen del corte anterior se alarga ese tiempo y la del siguiente empieza ese tiempo después. Los cortes del medio duran lo mismo que su audio (el primero dura ese tiempo más y el último ese tiempo menos), así que la imagen suma lo mismo que el audio y no se desfasan, y el mapa de tiempos se calcula sobre el audio, que es lo que siguen los subtítulos.
 6. Marca qué cortes necesitan "puente" (`cut_bridge`): en una sola cámara, un salto se disimula cambiando el encuadre (§5.3).
 7. Devuelve la lista de tramos, el mapa de tiempos, la duración final y la lista de puntos de corte.
 
