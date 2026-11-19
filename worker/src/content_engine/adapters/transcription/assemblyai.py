@@ -3,7 +3,8 @@ from typing import Any, cast
 
 import assemblyai as aai
 
-from content_engine.modules.ingest.domain.transcript import Transcript, Word, is_filler_word
+from content_engine.modules.ingest.domain.transcript import is_filler_word
+from content_engine.shared.transcript import Transcript, Word
 
 
 def request_transcription(audio_path: Path, api_key: str, glossary: list[str]) -> dict[str, Any]:

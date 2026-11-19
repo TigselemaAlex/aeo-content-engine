@@ -164,7 +164,7 @@ worker/
     ├── main.py                       # CLI: worker io | cpu | maintenance | prototype
     ├── bootstrap.py                  # raíz de composición: arma adaptadores y contexto
     ├── config.py                     # pydantic-settings (variables de entorno)
-    ├── shared/                       # núcleo compartido: ids, errores, tiempo, Money
+    ├── shared/                       # núcleo compartido: ids, errores, tiempo, Money, transcript (Word, Transcript)
     ├── ports/                        # interfaces (Protocol)
     │   ├── llm.py  transcription.py  storage.py  media.py  repositories.py
     ├── orchestrator/                 # entrada: escucha, toma, latido, completa, registro de pasos
@@ -200,6 +200,8 @@ worker/
 | `adapters` | `ports`, `shared`, tipos de `domain` | `steps`, `orchestrator` |
 | `orchestrator` | `ports`, `modules/*/api`, `piece_types/registry` | `adapters` (los recibe de `bootstrap`) |
 | `bootstrap.py` | Todo | — |
+
+**Qué entra a `shared`.** Solo lo que cumple las tres condiciones: (1) lo usan dos o más módulos, (2) son datos, sin reglas de negocio de un módulo, y (3) cambia poco. Ejemplo: `shared/transcript.py` tiene `Word` y `Transcript` porque la transcripción con índices de palabra es el idioma común de `ingest`, `clip` y las demás piezas; en cambio, la lista de muletillas (`is_filler_word`) se queda en `modules/ingest/domain`, porque decidir qué es una muletilla es una regla de `ingest`.
 
 Ejemplo de puerto y adaptador:
 

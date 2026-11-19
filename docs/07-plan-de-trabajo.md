@@ -162,7 +162,7 @@ La Fase 1 queda en 4 sprints (8 semanas) en lugar de las 4 a 5 semanas del resum
 1. Crear `piece_types/clip/domain/timeline.py` con los modelos `Segment` (desde la palabra X hasta la Y) y `Timeline` (lista de cortes + duración final).
 2. Función que convierte rangos de palabras en tiempos usando la transcripción. ✔ Prueba: palabras 10–20 → el inicio de la palabra 10 y el fin de la 20.
 3. Quitar muletillas. ✔ Prueba con una lista inventada que tenga "um".
-4. Recortar pausas largas (más de 500 ms) a unos 150 ms. ✔ Prueba con un hueco de 2 s entre dos palabras.
+4. Partir el tramo en las pausas largas (más de `pause_max_ms`, 500 ms por defecto), salvo las de `keep_pauses`; el silencio que queda lo forman los márgenes del paso 5. ✔ Prueba con un hueco de 2 s entre dos palabras.
 5. Agregar margen a cada corte (60 ms antes, 120 ms después) sin pisar la palabra vecina. ✔ Prueba con palabras muy juntas.
 6. Calcular el **mapa de tiempos**: dónde cae cada palabra en el clip final. *Ejemplo: si quitas 1 s de pausa, todo lo que viene después se mueve 1 s antes.* ✔ Prueba con una pausa quitada.
 7. Agregar los **J cuts**: el audio del tramo siguiente empieza unos fotogramas antes que la imagen.
