@@ -162,3 +162,38 @@ def add_j_cuts(cuts: list[Cut], j_cut_ms: int) -> list[Cut]:
         video_cuts.append(Cut(start_ms=start_ms, end_ms=end_ms))
 
     return video_cuts
+
+
+def build_timeline(
+    words: list[Word],
+    segment: Segment,
+    pause_max_ms: int = 500,
+    j_cut_frames: tuple[int, int] = (3, 5),
+    keep_pauses_after: tuple[int, ...] = (),
+    fps: int = 30,
+) -> Timeline:
+    without_fillers = split_out_fillers(segment=segment, words=words)
+    if not without_fillers:
+        raise ValueError(
+            f"words {segment.from_word} to {segment.to_word} are all fillers, nothing left to cut"
+        )
+
+    segments: list[Segment] = []
+
+    for part in without_fillers:
+        segments.extend(
+            split_at_long_pauses(
+                segment=part,
+                words=words,
+                pause_max_ms=pause_max_ms,
+                keep_pauses_after=keep_pauses_after,
+            )
+        )
+
+    cuts = [segment_to_padded_cut(segment=piece, words=words) for piece in segments]
+
+    min_frames, max_frames = j_cut_frames
+    j_cut_ms = frames_to_ms(frames=(min_frames + max_frames) // 2, fps=fps)
+    video_cuts = add_j_cuts(cuts=cuts, j_cut_ms=j_cut_ms)
+
+    return Timeline(cuts=cuts, video_cuts=video_cuts)
