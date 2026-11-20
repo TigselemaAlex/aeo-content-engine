@@ -1,11 +1,14 @@
 from pathlib import Path
+from typing import Annotated
 
 import typer
 from pydantic import ValidationError
 
-from content_engine.adapters.media.ffmpeg import extract_audio
+from content_engine.adapters.media.ffmpeg import extract_audio, extract_clip
 from content_engine.adapters.transcription.assemblyai import transcribe
 from content_engine.config import Settings, get_settings
+from content_engine.piece_types.clip.domain.timeline import Segment, build_timeline
+from content_engine.shared.transcript import Transcript
 
 app = typer.Typer()
 
@@ -54,4 +57,25 @@ def transcribe_audio_command(audio: Path, output: Path) -> None:
         f"Transcript saved to {output} "
         f"({len(transcript.words)} words - "
         f"{transcript.duration_ms / 1000:.1f}s - {fillers_count} fillers)"
+    )
+
+
+@app.command("cut")
+def cut_command(
+    video: Path,
+    transcript_path: Path,
+    from_word: Annotated[int, typer.Option("--from", help="First word index")],
+    to_word: Annotated[int, typer.Option("--to", help="Last word index")],
+    output: Annotated[Path, typer.Option(help="Output video")] = Path("mezzanine.mp4"),
+) -> None:
+    """Cut a word range out of the video, without fillers or long pauses."""
+    transcript = Transcript.model_validate_json(transcript_path.read_text(encoding="utf8"))
+    timeline = build_timeline(
+        words=transcript.words, segment=Segment(from_word=from_word, to_word=to_word)
+    )
+
+    extract_clip(video_path=video, timeline=timeline, output_path=output)
+
+    print(
+        f"Clip saved to {output} with {len(timeline.cuts)} cuts and {timeline.duration_ms:.1f}ms "
     )
