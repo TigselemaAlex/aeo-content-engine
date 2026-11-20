@@ -234,7 +234,9 @@ Es la parte con más lógica y la más fácil de probar: tests unitarios con tra
 
 ### 5.2 Extract
 
-FFmpeg extrae cada tramo del original con búsqueda exacta y los une en un **intermedio** (`mezzanine.mp4`): resolución original, 30 fps constantes, H.264 de alta calidad (CRF 16, preset rápido) y audio a 48 kHz. Los siguientes pasos trabajan sobre este archivo corto, no sobre el video de 1 hora.
+FFmpeg extrae cada tramo del original con búsqueda exacta y los une en un **intermedio** (`mezzanine.mp4`): resolución original, 30 fps constantes, H.264 de alta calidad (CRF 16, preset `veryfast`, `yuv420p`) y audio AAC a 48 kHz y 192 kbps. Los siguientes pasos trabajan sobre este archivo corto, no sobre el video de 1 hora.
+
+Por los J cuts, la imagen y el audio de cada tramo tienen rangos distintos (`video_cuts` y `cuts`, §5.1). Cada rango es una entrada propia de FFmpeg con búsqueda de entrada (`-ss inicio -t duración -i original`): dos entradas por tramo, imagen y audio, que el filtro `concat` une en orden y `fps=30` deja a fotogramas constantes. Saltar al punto exacto evita leer el original desde el principio, como haría recortar con `trim`/`atrim` sobre una sola entrada. Los argumentos los arma una función pura del dominio del clip (`ffmpeg_args.py`); el adaptador solo ejecuta FFmpeg.
 
 ### 5.3 Analyze: encuadre
 
