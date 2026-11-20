@@ -6,6 +6,7 @@ from content_engine.piece_types.clip.domain.timeline import (
     Segment,
     Timeline,
     add_j_cuts,
+    build_timeline,
     frames_to_ms,
     segment_to_cut,
     segment_to_padded_cut,
@@ -235,3 +236,30 @@ def test_timeline_rejects_video_cuts_with_other_duration() -> None:
     audio = [Cut(start_ms=0, end_ms=1000)]
     with pytest.raises(ValueError):
         Timeline(cuts=audio, video_cuts=[Cut(start_ms=0, end_ms=900)])
+
+
+def test_build_timeline_remove_fillers_and_j_cuts() -> None:
+    words = make_words(count=6, fillers=(2,))
+
+    timeline = build_timeline(words=words, segment=Segment(from_word=0, to_word=5))
+
+    assert timeline.cuts == [Cut(start_ms=0, end_ms=1620), Cut(start_ms=2940, end_ms=5620)]
+    assert timeline.video_cuts == [Cut(start_ms=0, end_ms=1753), Cut(start_ms=3073, end_ms=5620)]
+    assert timeline.duration_ms == 4300
+
+
+def test_build_timeline_splits_at_long_pauses() -> None:
+    words = make_words(3)
+
+    timeline = build_timeline(
+        words=words, segment=Segment(from_word=0, to_word=2), pause_max_ms=400
+    )
+
+    assert len(timeline.cuts) == 3
+
+
+def test_build_timeline_rejects_segment_with_only_fillers() -> None:
+    words = make_words(count=4, fillers=(1, 2))
+
+    with pytest.raises(ValueError, match="fillers"):
+        build_timeline(words=words, segment=Segment(from_word=1, to_word=2))
