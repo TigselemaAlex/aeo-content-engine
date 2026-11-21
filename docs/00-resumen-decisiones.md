@@ -119,6 +119,10 @@ Claude es el cerebro y el worker son las manos. Claude nunca toca el video: lee 
 - **Reencuadre con varias personas:** combinar MediaPipe con la identificación de hablantes de AssemblyAI.
 - **Calidad de subtítulos:** resaltado palabra por palabra sincronizado con los tiempos de AssemblyAI.
 
+## Pendientes de decidir
+
+- **Videos en HDR:** los teléfonos recientes graban en HDR por defecto (`color_transfer` `arib-std-b67` o `smpte2084`). El intermedio se guarda en `yuv420p` sin ajuste de tono, así que un video HDR sale lavado y sin contraste, sin dar error. Opciones: convertirlo a SDR con *tone mapping* o pasar a `needs_confirmation` para que el operador decida. Se decide en el paso `probe` (Sprint 4); mientras tanto, las grabaciones de prueba se hacen con el HDR apagado.
+
 ## Documentos de desarrollo
 
 1. Arquitectura del sistema con el flujo completo de un video — `01-arquitectura.md` ✅
