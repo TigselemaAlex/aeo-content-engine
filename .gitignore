@@ -40,3 +40,7 @@ worker/tests/fixtures/example-*
 
 # VS
 .vscode
+
+# Worker Outputs
+worker/faces.json
+worker/face-previews/

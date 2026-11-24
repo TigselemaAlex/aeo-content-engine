@@ -153,6 +153,7 @@ Así la pantalla de revisión se actualiza sola sin recargar.
 ```
 worker/
 ├── pyproject.toml
+├── models/                           # modelos de ML versionados: blaze_face_short_range.tflite
 ├── prompts/                          # 05-prompts.md §6
 ├── evals/                            # 05-prompts.md §7
 ├── tests/
@@ -182,13 +183,13 @@ worker/
     │   ├── post/  blog/  newsletter/  quote/  carousel/
     │   └── clip/
     │       ├── steps/                # decide, extract, analyze, compose, verify
-    │       └── domain/               # timeline, camera_path, captions_ass, render_plan, ffmpeg_args
+    │       └── domain/               # timeline, faces, camera_path, captions_ass, render_plan, ffmpeg_args
     └── adapters/
         ├── db/                       # psycopg: repositorios y la cola
         ├── llm/anthropic.py
         ├── transcription/assemblyai.py
         ├── storage/s3.py
-        └── media/                    # ffmpeg.py, mediapipe_faces.py, playwright_render.py
+        └── media/                    # ffmpeg.py, mediapipe_faces.py (pyright basic), face_preview.py, playwright_render.py
 ```
 
 ### 5.2 Reglas de dependencia

@@ -6,9 +6,9 @@ Content Engine de AEO.co: app web interna donde el operador sube el video largo 
 
 ## Estado
 
-Monorepo con su esqueleto (T1.2): `apps/`, `packages/`, `supabase/` y `templates/` existen pero están vacías. `worker/` ya es un proyecto uv (T1.3) donde funcionan `uv run ruff check`, `uv run pyright`, `uv run pytest` y los comandos `uv run content-engine hello`, `extract-audio`, `transcribe` (T1.4) y `cut` (T1.6). El `package.json` de la raíz todavía no tiene scripts, así que **ningún comando `pnpm` de abajo funciona todavía**; cada script se agrega en la tarea que crea lo que necesita. Repo público en GitHub con `main` protegida: todo cambio entra por rama y pull request.
+Monorepo con su esqueleto (T1.2): `apps/`, `packages/`, `supabase/` y `templates/` existen pero están vacías. `worker/` ya es un proyecto uv (T1.3) donde funcionan `uv run ruff check`, `uv run python -m pyright`, `uv run python -m pytest` y los comandos `uv run python -m content_engine hello`, `extract-audio`, `transcribe` (T1.4), `cut` (T1.6) y `detect-faces` (T2.1). En Windows se usa `python -m` porque el sistema puede bloquear los lanzadores `.exe` de uv (ver `worker/README.md`). El `package.json` de la raíz todavía no tiene scripts, así que **ningún comando `pnpm` de abajo funciona todavía**; cada script se agrega en la tarea que crea lo que necesita. Repo público en GitHub con `main` protegida: todo cambio entra por rama y pull request.
 
-**Progreso:** última tarea cerrada **T1.6** (19 nov 2026) · siguiente **T2.1**. Registro completo en `docs/progreso.md`; al cerrar una tarea se agrega ahí una línea y se reemplaza esta.
+**Progreso:** última tarea cerrada **T2.1** (24 nov 2026) · siguiente **T2.2**. Registro completo en `docs/progreso.md`; al cerrar una tarea se agrega ahí una línea y se reemplaza esta.
 
 ## Dónde está el resto
 

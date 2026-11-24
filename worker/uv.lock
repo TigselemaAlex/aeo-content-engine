@@ -172,6 +172,7 @@ source = { editable = "." }
 dependencies = [
     { name = "assemblyai" },
     { name = "mediapipe" },
+    { name = "numpy" },
     { name = "opencv-contrib-python" },
     { name = "pydantic-settings" },
     { name = "typer" },
@@ -188,6 +189,7 @@ dev = [
 requires-dist = [
     { name = "assemblyai", specifier = ">=1.10.0" },
     { name = "mediapipe", specifier = ">=1.2.3" },
+    { name = "numpy", specifier = ">=2.5.5" },
     { name = "opencv-contrib-python", specifier = ">=5.1.0.95" },
     { name = "pydantic-settings", specifier = ">=2.16.3" },
     { name = "typer", specifier = ">=0.29.1" },

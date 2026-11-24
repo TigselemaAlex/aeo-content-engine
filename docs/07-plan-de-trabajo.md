@@ -212,7 +212,7 @@ La Fase 1 queda en 4 sprints (8 semanas) en lugar de las 4 a 5 semanas del resum
 **Qué vas a construir:** la función que decide dónde poner la ventana vertical en cada momento para seguir la cara sin temblar.
 **Qué vas a aprender:** suavizar movimiento y pensar en coordenadas.
 
-1. Calcular el tamaño de la ventana 9:16 dentro de un video 1920x1080 (608x1080).
+1. Calcular el tamaño de la ventana 9:16 desde la resolución real del video: alto × 9 ÷ 16 (en 1920x1080 da 608x1080).
 2. Centrar la ventana en la cara, sin salirse del cuadro. ✔ Prueba con una cara pegada al borde.
 3. **Zona muerta:** si la cara se mueve poco, la ventana no se mueve. ✔ Prueba con movimientos chicos.
 4. **Suavizado** y velocidad máxima: la ventana se acerca a la cara poco a poco. ✔ Prueba con un salto grande de la cara.
