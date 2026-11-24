@@ -9,6 +9,9 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "assemblyai>=1.10.0",
+    "mediapipe>=1.2.3",
+    "numpy>=2.5.5",
+    "opencv-contrib-python>=5.1.0.95",
     "pydantic-settings>=2.16.3",
     "typer>=0.29.1",
 ]

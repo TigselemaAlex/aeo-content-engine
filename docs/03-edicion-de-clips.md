@@ -242,9 +242,9 @@ Por los J cuts, la imagen y el audio de cada tramo tienen rangos distintos (`vid
 
 Sobre el intermedio, reducido a ~640 px de ancho:
 
-1. **Detección de cara** con MediaPipe Face Detector, ~10 fps.
-2. **Pista principal:** en una persona a cámara es la cara más grande y persistente.
-3. **Ventana 9:16:** de un video 1920x1080 se toma una ventana de 608x1080 (alto completo).
+1. **Detección de cara** con MediaPipe Face Detector, ~10 fps. Las cajas se guardan en píxeles del intermedio original, no de la imagen reducida.
+2. **Pista principal:** en una persona a cámara es la cara más grande y persistente. Las caras se agrupan en pistas: una caja se une a la pista más cercana si su centro está a ≤ 0,5 anchos de cara de la última caja de esa pista y es de un fotograma anterior, sin límite de tiempo. Gana la pista con mayor suma de áreas (ancho × alto de cada caja).
+3. **Ventana 9:16:** alto completo y ancho = alto × 9 ÷ 16, calculado desde la resolución real del intermedio. En un video 1920x1080 da 608x1080.
 4. **Camino de cámara:** el centro de la ventana sigue a la cara con:
    - zona muerta (no se mueve si la cara sigue dentro del 10 % central),
    - suavizado (resorte amortiguado) y velocidad máxima, para que no tiemble,

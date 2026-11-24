@@ -1,12 +1,16 @@
+import json
 from pathlib import Path
 from typing import Annotated
 
 import typer
 from pydantic import ValidationError
 
+from content_engine.adapters.media.face_preview import save_face_preview
 from content_engine.adapters.media.ffmpeg import extract_audio, extract_clip
+from content_engine.adapters.media.mediapipe_faces import detect_faces
 from content_engine.adapters.transcription.assemblyai import transcribe
 from content_engine.config import Settings, get_settings
+from content_engine.piece_types.clip.domain.faces import pick_main_face
 from content_engine.piece_types.clip.domain.timeline import Segment, build_timeline
 from content_engine.shared.transcript import Transcript
 
@@ -78,4 +82,31 @@ def cut_command(
 
     print(
         f"Clip saved to {output} with {len(timeline.cuts)} cuts and {timeline.duration_ms:.1f}ms "
+    )
+
+
+@app.command("detect-faces")
+def detect_faces_command(
+    video: Path,
+    output: Annotated[Path, typer.Option(help="Output JSON")] = Path("faces.json"),
+    previews: Annotated[Path, typer.Option(help="Folder for preview images")] = Path(
+        "face-previews"
+    ),
+    model: Annotated[Path, typer.Option(help="Face detection model")] = Path(
+        "models/blaze_face_short_range.tflite"
+    ),
+) -> None:
+    """Find the main face over time; save it as JSON plus preview images."""
+    boxes = detect_faces(video_path=video, model_path=model)
+    main_face = pick_main_face(boxes=boxes)
+
+    data = [box.model_dump() for box in main_face]
+
+    output.write_text(json.dumps(data, indent=2), encoding="utf8")
+
+    images = save_face_preview(video_path=video, boxes=main_face, output_dir=previews)
+
+    print(
+        f"Main face saved to {output} "
+        f"({len(main_face)} of {len(boxes)} boxes - {len(images)} previews in {previews})"
     )

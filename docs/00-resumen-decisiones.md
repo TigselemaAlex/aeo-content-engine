@@ -65,7 +65,10 @@ El operador revisa, corrige con comentarios o regenera, y envía el paquete. Hay
 | App web | Next.js + React + TypeScript | Stack sugerido y fuerte del desarrollador |
 | Idioma del código | Inglés en nombres, comentarios, configuración, commits y logs; `docs/` en español | El repo pasa a la agencia (RNF-09), cuyo equipo trabaja en inglés |
 | Versión de Node.js | Node.js 26 (LTS) | La 22 está por terminar su soporte; la 26 ya es LTS y es la instalada |
-| Tipos en Python | Pyright en modo `strict` en el worker (`src` y `tests`) | Detecta errores de tipos desde el principio, cuando todavía hay poco código que ajustar |
+| Tipos en Python | Pyright en modo `strict` en el worker (`src` y `tests`). Única excepción: `adapters/media/mediapipe_faces.py` lleva `# pyright: basic` (decidido el 23 nov 2026) | Detecta errores de tipos desde el principio, cuando todavía hay poco código que ajustar. MediaPipe no trae tipos y daría 29 errores; el adaptador es el único archivo que lo toca y solo entrega `FaceBox` con tipos completos |
+| Modelo de detección de caras | `blaze_face_short_range.tflite` de MediaPipe, versionado en `worker/models/` (decidido el 20 nov 2026) | Pesa 230 KB; el worker no descarga nada al arrancar y todos usan el mismo modelo |
+| Cara principal | Las caras se agrupan en pistas: una caja se une a la pista más cercana si su centro está a ≤ 0,5 anchos de cara de la última caja de esa pista y es de un fotograma anterior; sin límite de tiempo. Gana la pista con mayor suma de áreas (decidido el 23 nov 2026) | Un solo número junta "grande" y "persistente"; descarta caras falsas o de fondo. Sin límite de tiempo, una cara que se tapa unos segundos vuelve a su pista y no se pierde ese tramo |
+| Comandos del worker en Windows | `uv run python -m content_engine …` y `uv run python -m pyright`, no los lanzadores `.exe` (decidido el 24 nov 2026) | El Control inteligente de aplicaciones de Windows 11 bloquea los `.exe` sin firma que crea uv según la reputación en la nube de Microsoft, que cambia sin aviso; `python.exe` está firmado |
 | Archivo `.env` | Uno solo, en la raíz del monorepo; el worker lo lee como `../.env` (un `worker/.env` opcional lo sobrescribe) | Las claves se escriben una vez para la web y el worker |
 | IA de texto | Claude API: Sonnet 5.5 para generar, Haiku 5.5 para validar, con caché de prompts. El identificador exacto de cada modelo va en variables de entorno (`CLAUDE_MODEL_GENERATE`, `CLAUDE_MODEL_VALIDATE`) | Cada modelo en la tarea que le corresponde; cambiar de versión no requiere tocar código |
 | Carruseles y gráficos | Plantillas HTML por cliente renderizadas a PNG con Playwright | Se editan como HTML, sin herramientas de diseño |
@@ -118,6 +121,11 @@ Claude es el cerebro y el worker son las manos. Claude nunca toca el video: lee 
 
 - **Reencuadre con varias personas:** combinar MediaPipe con la identificación de hablantes de AssemblyAI.
 - **Calidad de subtítulos:** resaltado palabra por palabra sincronizado con los tiempos de AssemblyAI.
+
+## Pendientes de decidir
+
+- **Videos en HDR:** los teléfonos recientes graban en HDR por defecto (`color_transfer` `arib-std-b67` o `smpte2084`). El intermedio se guarda en `yuv420p` sin ajuste de tono, así que un video HDR sale lavado y sin contraste, sin dar error. Opciones: convertirlo a SDR con *tone mapping* o pasar a `needs_confirmation` para que el operador decida. Se decide en el paso `probe` (Sprint 4); mientras tanto, las grabaciones de prueba se hacen con el HDR apagado.
+- **Detección de caras como paso de la cola (`clip.analyze`, Sprint 4):** lo que la T2.1 dejó resuelto solo para el comando de prueba. (1) Cambiar `RuntimeError` por `PermanentError` (video que no abre o sin fps) o `RetryableError`, para que el orquestador sepa si reintentar. (2) La ruta del modelo sale hoy de una opción del comando, relativa a `worker/`; como paso debe salir de `Settings` (variable de entorno), y el JSON debe ir a una clave determinista (`analysis.{hash}.json`, `03` §5). (3) El tiempo de cada fotograma se calcula por número de fotograma, correcto porque el intermedio va a 30 fps constantes; si algún día se analiza el original del celular (fotogramas irregulares), usar `CAP_PROP_POS_MSEC`. (4) En videos largos, sin límite de tiempo cada detección falsa abre una pista que nunca se cierra, y el bucle debe llamar a `heartbeat()`. (5) Sacar la conversión de 640 px a píxeles del original a una función `to_face_box` con su prueba, como `test_assemblyai_mapping.py`. (6) Decidir si `face_preview.py` sigue en `adapters/media/` o pasa a herramientas de desarrollo.
 
 ## Documentos de desarrollo
 
