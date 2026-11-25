@@ -19,7 +19,7 @@ def test_single_face_keeps_every_box() -> None:
     assert pick_main_face(boxes=boxes) == boxes
 
 
-def test_small_false_face_is_dropped() -> None:
+def test_brief_false_face_is_dropped() -> None:
     main = make_track(x=800, y=200, w=500, h=500, frames=20)
     false_face = make_track(x=100, y=100, w=600, h=600, frames=3)
 

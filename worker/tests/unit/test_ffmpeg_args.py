@@ -10,7 +10,7 @@ from content_engine.piece_types.clip.domain.ffmpeg_args import (
 from content_engine.piece_types.clip.domain.timeline import Cut, Timeline
 
 
-def test_seconds_fromats_ms_with_three_decimals() -> None:
+def test_seconds_formats_ms_with_three_decimals() -> None:
     assert seconds(0) == "0.000"
     assert seconds(2940) == "2.940"
     assert seconds(61234) == "61.234"
@@ -77,7 +77,7 @@ def test_concat_filter_with_one_cut() -> None:
     )
 
 
-def test_build_extract_Args_cuts_video_and_audio_and_joins_them() -> None:
+def test_build_extract_args_cuts_video_and_audio_and_joins_them() -> None:
     timeline = Timeline(
         cuts=[Cut(start_ms=0, end_ms=1620), Cut(start_ms=2940, end_ms=5620)],
         video_cuts=[Cut(start_ms=0, end_ms=1753), Cut(start_ms=3073, end_ms=5620)],

@@ -51,6 +51,7 @@ Eres el revisor de codigo del Content Engine de AEO.co. Revisas contra las regla
 **5. Convenciones y pruebas**
 
 - Nombres, tipos de paso (`modulo.accion`), forma de retorno de las Server Actions (`{ ok, data }` / `{ ok: false, error }`), logs en JSON con `job_id`/`piece_id`/`step_id`, textos de interfaz en ingles, configuracion solo por variables de entorno.
+- Docstrings: cada modulo, clase y funcion nueva o cambiada tiene docstring completo segun `docs/06` §9.1 (que hace, argumentos, que devuelve, errores, ejemplo si hay formula). Si falta o es pobre, recomienda pasar el agente `documentador`; no lo escribas tu.
 - ¿Falta la prueba que corresponde a esa capa? Prioriza dominio del worker y RLS: son las que mas valen.
 
 ## Como entregas la revision

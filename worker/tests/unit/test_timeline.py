@@ -216,7 +216,7 @@ def test_add_j_cuts_shifts_each_join() -> None:
     ]
 
 
-def test_add_j_cuts_single_cut_is_uncharged() -> None:
+def test_add_j_cuts_single_cut_is_unchanged() -> None:
     audio = [Cut(start_ms=1000, end_ms=3000)]
     assert add_j_cuts(cuts=audio, j_cut_ms=133) == audio
 

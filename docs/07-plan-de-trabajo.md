@@ -62,7 +62,7 @@ Con más de 20 horas por semana. Los estimados incluyen tiempo para repasar y ap
 | Sprint | Objetivo | Fase | Estimado |
 | --- | --- | --- | --- |
 | **S1** | Preparar todo y dar los primeros pasos con video y transcripción | 0 | ~45 h |
-| **S2** | Prototipo de clip: de un video horizontal a un clip vertical con subtítulos | 0 | ~55 h |
+| **S2** | Prototipo de clip: de un video horizontal a un clip vertical con subtítulos | 0 | ~62 h |
 | **S3** | Base de datos, login y clientes | 1 | ~60 h |
 | **S4** | Subir un video y procesarlo con la cola del worker | 1 | ~50 h |
 | **S5** | Generar las piezas de texto y la pantalla de revisión | 1 | ~50 h |
@@ -221,6 +221,21 @@ La Fase 1 queda en 4 sprints (8 semanas) en lugar de las 4 a 5 semanas del resum
 7. Generar la lista de *keyframes* de recorte (tiempo, x, y, ancho, alto).
 
 **Terminaste cuando:** las pruebas pasan y el camino generado sobre tu grabación se ve estable en un gráfico simple (x en el tiempo).
+
+### T2.2b · Docstrings de calidad y agente documentador
+`documentacion` · `worker` · ~6 h
+**Lee antes:** `06-arquitectura-del-codigo.md` §9 (convenciones) y `.claude/agents/revisor-de-codigo.md` (cómo está escrito un agente).
+
+**Qué vas a construir:** un agente de Claude Code, `documentador`, que escribe los docstrings del proyecto como los de cualquier librería seria, y el worker entero documentado con él.
+**Qué vas a aprender:** qué lleva un buen docstring (qué hace, argumentos, qué devuelve, errores y un ejemplo), cómo se escribe un agente y cómo hacer que una herramienta exija la documentación.
+
+1. Elegir el estilo: en Python, estilo Google (`Args:`, `Returns:`, `Raises:`, `Example:`); en TypeScript, TSDoc (`@param`, `@returns`, `@throws`, `@example`). Escribirlo en `docs/06` §9.1 con un ejemplo real (`crop_window_size`). ✔ El ejemplo se entiende sin abrir el código de la función.
+2. Crear el agente en `.claude/agents/documentador.md`: lee el código y sus pruebas antes de escribir, documenta en inglés según `docs/06` §9.1, explica cada fórmula con un ejemplo de números, nunca cambia la lógica y dice lo que no entendió en vez de inventarlo. ✔ Aparece en `/agents`.
+3. Probarlo con un archivo: `piece_types/clip/domain/faces.py`. ✔ `git diff` solo muestra docstrings; Ruff, Pyright y pytest en verde.
+4. Pasarlo por el resto de `worker/src/` y `worker/scripts/`, revisando cada archivo. ✔ Las mismas comprobaciones.
+5. Hacer que Ruff exija los docstrings: reglas `D` (pydocstyle) con `convention = "google"`, sin exigirlos en `tests/`. ✔ `uv run ruff check` en verde, y falla si borras un docstring.
+
+**Terminaste cuando:** cada módulo, clase y función del worker tiene un docstring que dice qué hace, sus argumentos, qué devuelve, qué errores lanza y un ejemplo cuando hay una fórmula; Ruff lo exige, y el agente `documentador` queda listo para las tareas siguientes.
 
 ### T2.3 · Recorte variable con FFmpeg
 `video` · ~10 h

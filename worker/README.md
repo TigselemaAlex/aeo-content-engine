@@ -7,7 +7,7 @@ Python worker for the Content Engine. Managed with [uv](https://docs.astral.sh/u
 From `worker/`:
 
 ```
-uv run python -m content_engine <command>    # hello, extract-audio, transcribe, cut, detect-faces
+uv run python -m content_engine <command>    # hello, extract-audio, transcribe, cut, detect-faces, camera-path
 uv run python -m pytest
 uv run python -m pyright
 uv run ruff check

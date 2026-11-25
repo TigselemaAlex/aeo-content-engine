@@ -6,9 +6,9 @@ Content Engine de AEO.co: app web interna donde el operador sube el video largo 
 
 ## Estado
 
-Monorepo con su esqueleto (T1.2): `apps/`, `packages/`, `supabase/` y `templates/` existen pero están vacías. `worker/` ya es un proyecto uv (T1.3) donde funcionan `uv run ruff check`, `uv run python -m pyright`, `uv run python -m pytest` y los comandos `uv run python -m content_engine hello`, `extract-audio`, `transcribe` (T1.4), `cut` (T1.6), `detect-faces` (T2.1) y `camera-path` (T2.2). En Windows se usa `python -m` porque el sistema puede bloquear los lanzadores `.exe` de uv (ver `worker/README.md`). El `package.json` de la raíz todavía no tiene scripts, así que **ningún comando `pnpm` de abajo funciona todavía**; cada script se agrega en la tarea que crea lo que necesita. Repo público en GitHub con `main` protegida: todo cambio entra por rama y pull request.
+Monorepo con su esqueleto (T1.2): `apps/`, `packages/`, `supabase/` y `templates/` existen pero están vacías. `worker/` ya es un proyecto uv (T1.3) donde funcionan `uv run ruff check` (exige docstrings, reglas `D`), `uv run python -m pyright`, `uv run python -m pytest` (incluye los doctests de `src/`) y los comandos `uv run python -m content_engine hello`, `extract-audio`, `transcribe` (T1.4), `cut` (T1.6), `detect-faces` (T2.1) y `camera-path` (T2.2). En Windows se usa `python -m` porque el sistema puede bloquear los lanzadores `.exe` de uv (ver `worker/README.md`). El `package.json` de la raíz todavía no tiene scripts, así que **ningún comando `pnpm` de abajo funciona todavía**; cada script se agrega en la tarea que crea lo que necesita. Repo público en GitHub con `main` protegida: todo cambio entra por rama y pull request.
 
-**Progreso:** última tarea cerrada **T2.2** (25 nov 2026) · siguiente **T2.3**. Registro completo en `docs/progreso.md`; al cerrar una tarea se agrega ahí una línea y se reemplaza esta.
+**Progreso:** última tarea cerrada **T2.2b** (25 nov 2026) · siguiente **T2.3**. Registro completo en `docs/progreso.md`; al cerrar una tarea se agrega ahí una línea y se reemplaza esta.
 
 ## Dónde está el resto
 
@@ -24,6 +24,7 @@ Todo se carga desde aquí: **no** crees `CLAUDE.md` dentro de subcarpetas.
 | --- | --- |
 | `revisor-de-codigo` | Revisar código contra las reglas del proyecto, al cerrar una tarea o antes de dar un cambio por terminado |
 | `guardian-de-docs` | Ver si un cambio o decisión dejó los documentos incoherentes |
+| `documentador` | Escribir o mejorar docstrings (Python y TypeScript). Es **el único** que los escribe: al crear o cambiar código, pásalo por él |
 
 `.claude/hooks/check-reglas.mjs` revisa automáticamente, al escribir un archivo: dominio puro, `steps` sin `adapters`, `server-only`, Lucide, `service_role`, límites de `app/` y versión de los prompts. También pide confirmación antes de editar una migración existente.
 
@@ -77,6 +78,7 @@ Las Fases 2, 3 y 4 **no están planificadas**: hay que escribirlas con el format
 - TypeScript `camelCase`, componentes `PascalCase`, archivos `kebab-case.ts`; Python y SQL `snake_case`; `rpc` como verbo + objeto (`approve_piece`); pasos como `modulo.accion` (`clip.compose`).
 - Server Actions devuelven `{ ok: true, data }` o `{ ok: false, error }`; nunca lanzan al cliente.
 - Configuración solo por variables de entorno, toda nueva a `.env.example`; nunca subas claves. Logs en JSON con `job_id`, `piece_id`, `step_id`.
+- Todo módulo, clase y función lleva docstring completo (qué hace, argumentos, qué devuelve, errores, ejemplo si hay fórmula), escrito por el agente `documentador` con el estilo de `docs/06` §9.1.
 - Textos de la interfaz en inglés, y también todo el código: nombres, comentarios, configuración, commits y logs. `docs/` sigue en español. Conventional Commits; ramas `feat/…` y `fix/…`; `main` protegida.
 
 ## Comandos
@@ -92,6 +94,6 @@ Scripts de la raíz, creados en el Sprint 1 (T1.2) y el Sprint 3.
 | `pnpm test` / `pnpm test:db` | Vitest y pytest unitarios · pgTAP e integración del worker |
 | `pnpm lint` | ESLint, Prettier, dependency-cruiser, Ruff, Pyright, import-linter |
 
-Una sola prueba: `uv run pytest tests/unit/test_timeline.py::test_nombre` en `worker/`, `pnpm vitest run archivo.test.ts -t "nombre"` en la web, `supabase test db` para pgTAP.
+Una sola prueba: `uv run python -m pytest tests/unit/test_timeline.py::test_nombre` en `worker/`, `pnpm vitest run archivo.test.ts -t "nombre"` en la web, `supabase test db` para pgTAP.
 
 Antes de dar algo por terminado: `pnpm lint` y `pnpm test` en verde.

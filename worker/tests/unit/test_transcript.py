@@ -55,3 +55,13 @@ def test_normal_word_is_not_a_filler() -> None:
 
 def test_word_that_starts_like_a_filler_is_not_one() -> None:
     assert not is_filler_word("umbrella")
+
+
+def test_cut_off_filler_with_hyphen_is_detected() -> None:
+    assert is_filler_word("uh-")
+    assert is_filler_word(" um")
+
+
+def test_hyphenated_answer_and_cut_off_word_are_not_fillers() -> None:
+    assert not is_filler_word("Uh-huh")
+    assert not is_filler_word("haven't-")
