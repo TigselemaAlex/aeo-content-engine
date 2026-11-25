@@ -52,6 +52,16 @@ class Timeline(BaseModel):
             raise ValueError("video_vuts must last the same as the audio cuts")
         return self
 
+    @property
+    def video_cut_points_ms(self) -> list[int]:
+        """Clip times where the image jumps from one cut to the next."""
+        points: list[int] = []
+        elapsed_ms = 0
+        for video_cut in self.video_cuts[:-1]:
+            elapsed_ms += video_cut.end_ms - video_cut.start_ms
+            points.append(elapsed_ms)
+        return points
+
     def to_clip_ms(self, original_ms: int) -> int | None:
         cut_start_in_clip_ms = 0
         for cut in self.cuts:
@@ -197,3 +207,16 @@ def build_timeline(
     video_cuts = add_j_cuts(cuts=cuts, j_cut_ms=j_cut_ms)
 
     return Timeline(cuts=cuts, video_cuts=video_cuts)
+
+
+def words_to_clip_ms(word_indices: list[int], words: list[Word], timeline: Timeline) -> list[int]:
+    """Clip time where each word starts. Fails if a word was cut out of the clip."""
+    clip_ms: list[int] = []
+    for index in word_indices:
+        if not 0 <= index < len(words):
+            raise ValueError(f"word {index} is not in the transcript")
+        ms = timeline.to_clip_ms(words[index].start_ms)
+        if ms is None:
+            raise ValueError(f"word {index} ({words[index].text!r}) is not in the clip")
+        clip_ms.append(ms)
+    return clip_ms

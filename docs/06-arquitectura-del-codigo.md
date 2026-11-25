@@ -156,6 +156,7 @@ worker/
 ├── models/                           # modelos de ML versionados: blaze_face_short_range.tflite
 ├── prompts/                          # 05-prompts.md §6
 ├── evals/                            # 05-prompts.md §7
+├── scripts/                          # herramientas de desarrollo fuera del paquete (p. ej. plot_camera_path.py)
 ├── tests/
 │   ├── unit/
 │   ├── integration/                  # contra Supabase y MinIO locales

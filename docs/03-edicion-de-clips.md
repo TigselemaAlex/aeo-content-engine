@@ -245,15 +245,17 @@ Sobre el intermedio, reducido a ~640 px de ancho:
 1. **Detección de cara** con MediaPipe Face Detector, ~10 fps. Las cajas se guardan en píxeles del intermedio original, no de la imagen reducida.
 2. **Pista principal:** en una persona a cámara es la cara más grande y persistente. Las caras se agrupan en pistas: una caja se une a la pista más cercana si su centro está a ≤ 0,5 anchos de cara de la última caja de esa pista y es de un fotograma anterior, sin límite de tiempo. Gana la pista con mayor suma de áreas (ancho × alto de cada caja).
 3. **Ventana 9:16:** alto completo y ancho = alto × 9 ÷ 16, calculado desde la resolución real del intermedio. En un video 1920x1080 da 608x1080.
-4. **Camino de cámara:** el centro de la ventana sigue a la cara con:
-   - zona muerta (no se mueve si la cara sigue dentro del 10 % central),
-   - suavizado (resorte amortiguado) y velocidad máxima, para que no tiemble,
-   - límites para que la cara siempre quede completa (`keep_face_visible`).
-5. **Zooms:** en cada `emphasis.kind = zoom`, la ventana se achica (hasta `zoom.max_scale`, 1.15) con entrada y salida suaves de `zoom.ease_s` segundos.
-6. **Puentes de corte** (`cut_bridge = punch_in`): en cada salto, el encuadre alterna entre 100 % y ~110 %, así el corte se lee como cambio de plano y no como salto. Esto también cumple el "cambio visual cada 2–3 s" de las reglas base.
-7. **Sin cara** más de 2 s (por ejemplo, se sale de cuadro): se mantiene la última posición; si sigue, ese tramo usa `fit_blur` (cuadro completo centrado sobre el mismo video desenfocado).
+4. **Camino de cámara** (código puro, `camera_path.py`): un keyframe por fotograma del intermedio (30 fps). Entre dos cajas de cara (cada 100 ms) la posición se interpola en línea recta, salvo a través de un corte: ahí cada lado usa la caja de su plano. El centro de la ventana sigue a la cara con:
+   - zona muerta: no se mueve mientras el centro de la cara esté dentro del 10 % central **del ancho de la ventana** (±30 px en 608); al salir, apunta a centrar la cara,
+   - suavizado con un resorte amortiguado crítico (ω = 8, llega en ~0,6 s sin pasarse) y velocidad máxima de 600 px/s (20 px por fotograma),
+   - límites para que la cara quede visible (`keep_face_visible`): se permite dejar afuera hasta un **5 % del ancho de la caja por lado**, para que el ruido de los bordes de la detección no haga temblar la ventana. Si aun así la cara no cabe, la ventana se centra en ella. Esta regla gana sobre la velocidad máxima.
+5. **Zooms:** en cada `emphasis.kind = zoom`, la ventana se achica hasta `zoom.max_scale` (1.15): entrada de 1,5 s (el medio de `zoom.ease_s`), 1 s sostenido y salida de 1,5 s. En total 4 s, la separación mínima entre zooms. Las curvas usan *smoothstep* (3p² − 2p³). Los índices de palabra se pasan a tiempo del clip antes (`words_to_clip_ms` en el timeline).
+6. **Puentes de corte** (`cut_bridge = punch_in`): en cada salto de imagen (`Timeline.video_cut_points_ms`), el encuadre alterna al instante entre 100 % y 110 % y la cámara salta a la cara, así el corte se lee como cambio de plano y no como salto. Con un zoom en curso: escala = base + (1,15 − base) × avance del zoom; con el zoom completo el puente no se nota. Esto también cumple el "cambio visual cada 2–3 s" de las reglas base.
+7. **Sin cara** más de 2 s (por ejemplo, se sale de cuadro): se mantiene la última posición, y el camino devuelve esos tramos (todo el hueco, `no_face`) para que el render use `fit_blur` (cuadro completo centrado sobre el mismo video desenfocado). Un hueco es más de 200 ms entre dos cajas.
 
-Resultado: una lista de *keyframes* de recorte `(t, x, y, w, h)` y la caja de la cara por tiempo, que sirve para ubicar los subtítulos (`avoid_face`) y para la revisión automática.
+Ancho y alto de la ventana se redondean a números pares (`yuv420p`). El fotograma de cada corte es `round(ms × 30 ÷ 1000)`; en la T2.3 hay que confirmar que coincide con el fotograma en que salta el intermedio.
+
+Resultado: una lista de *keyframes* de recorte `(t, x, y, w, h)`, los tramos sin cara y la caja de la cara por tiempo, que sirve para ubicar los subtítulos (`avoid_face`) y para la revisión automática.
 
 ### 5.4 Overlays
 
