@@ -5,5 +5,10 @@
     "engines": {
         "node": ">=26"
     },
-    "scripts": {}
+    "scripts": {
+        "lint": "pnpm lint:worker",
+        "lint:worker": "cd worker && uv run ruff check && uv run ruff format --check && uv run python -m pyright && uv run lint-imports",
+        "test": "pnpm test:worker",
+        "test:worker": "cd worker && uv run python -m pytest"
+    }
 }

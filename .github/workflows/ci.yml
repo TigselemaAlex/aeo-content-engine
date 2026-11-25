@@ -1,0 +1,49 @@
+# Checks every pull request and every push to main (docs/06 §11).
+# The "worker" job is a required status check of the protect-main ruleset:
+# a pull request with a red check cannot be merged.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  worker:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: worker/uv.lock
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Ruff (lint and docstrings)
+        run: uv run ruff check --output-format=github
+
+      - name: Ruff (format)
+        run: uv run ruff format --check
+
+      - name: Pyright
+        run: uv run pyright
+
+      - name: Import contracts
+        run: uv run lint-imports
+
+      - name: Pytest (unit tests and doctests)
+        run: uv run pytest

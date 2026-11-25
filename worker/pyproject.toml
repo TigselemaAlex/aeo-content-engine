@@ -25,6 +25,7 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "import-linter>=2.17",
     "matplotlib>=3.11.2",
     "pyright>=1.1.414",
     "pytest>=9.2.0",
@@ -44,6 +45,48 @@ convention = "google"
 [tool.ruff.lint.per-file-ignores]
 # Tests are named after what they check; a docstring is optional (docs/06 §9.1).
 "tests/**" = ["D1"]
+
+[tool.importlinter]
+root_package = "content_engine"
+include_external_packages = true
+
+# docs/06 §5.3. Layers in parentheses do not exist yet; they are checked once created.
+[[tool.importlinter.contracts]]
+name = "Layers: entry points -> adapters -> modules and piece types -> ports -> shared"
+type = "layers"
+layers = [
+    "content_engine.main | (content_engine.orchestrator) | (content_engine.bootstrap)",
+    "content_engine.adapters",
+    "content_engine.modules : content_engine.piece_types",
+    "(content_engine.ports)",
+    "content_engine.shared",
+]
+
+[[tool.importlinter.contracts]]
+name = "Pure domain: no network, disk, database, video or subprocess"
+type = "forbidden"
+source_modules = ["content_engine.**.domain"]
+forbidden_modules = [
+    "psycopg",
+    "anthropic",
+    "assemblyai",
+    "boto3",
+    "mediapipe",
+    "playwright",
+    "subprocess",
+    "cv2",
+    "content_engine.adapters",
+    "content_engine.config",
+    "content_engine.main",
+]
+
+[[tool.importlinter.contracts]]
+name = "Modules use each other only through api.py"
+type = "independence"
+modules = ["content_engine.modules.*"]
+ignore_imports = ["content_engine.modules.** -> content_engine.modules.*.api"]
+# No api.py exists yet (Sprint 4); the exception applies once one does.
+unmatched_ignore_imports_alerting = "none"
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "src"]

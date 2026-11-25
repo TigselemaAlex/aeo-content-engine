@@ -229,9 +229,11 @@ Lo importante del clip (timeline, camino de cámara, subtítulos, plan de render
 
 `import-linter` con contratos en `pyproject.toml`:
 
-- **Capas:** `orchestrator` → `modules` / `piece_types` → `ports` → `shared`.
-- **Prohibido:** `*.domain` no importa `psycopg`, `anthropic`, `assemblyai`, `boto3`, `mediapipe`, `playwright`, `subprocess`.
-- **Independencia:** los módulos solo se importan entre sí a través de `api.py`.
+- **Capas:** puntos de entrada (`main`, `orchestrator`, `bootstrap`) → `adapters` → `modules` / `piece_types` → `ports` → `shared`. Una capa solo importa las de abajo: así un paso o un dominio nunca importa un adaptador. Las capas que todavía no existen (`orchestrator`, `bootstrap`, `ports`) van entre paréntesis en el contrato y se comprueban desde que se crean.
+- **Prohibido:** `*.domain` no importa `psycopg`, `anthropic`, `assemblyai`, `boto3`, `mediapipe`, `playwright`, `subprocess`, `cv2` (OpenCV lee video), `content_engine.adapters`, `content_engine.config` ni `content_engine.main`.
+- **Independencia:** los módulos solo se importan entre sí a través de `api.py`. Mientras no exista ningún `api.py` la excepción no avisa (`unmatched_ignore_imports_alerting = "none"`).
+
+Se corre con `uv run lint-imports` (en `worker/`), dentro de `pnpm lint` y en el CI. Comprobado el 25 nov 2026: un `import subprocess` en un dominio rompe el contrato y el informe muestra la cadena de imports.
 
 En la web, `.dependency-cruiser.cjs` aplica las reglas de §4.2.
 
@@ -346,7 +348,7 @@ Un docstring se escribe para que se entienda la función **sin abrir su código*
 
 Si el agente no encuentra el origen en `docs/`, en el código o en las pruebas, lo pregunta. No lo inventa.
 
-**Fórmulas.** Se explican con la cuenta escrita paso a paso, usando los números de la grabación de prueba (1920x1080 a 30 fps). Después va un *doctest*: una línea `>>>` que pytest ejecuta (`--doctest-modules` en `pyproject.toml`), así el ejemplo falla si la fórmula cambia. Los doctests van solo en código puro (`*/domain` y `shared/`); en adaptadores, `main.py` y `scripts/` el ejemplo va en prosa, sin `>>>`, porque leen disco, llaman a FFmpeg o a un proveedor.
+**Fórmulas.** Se explican con la cuenta escrita paso a paso, usando los números de la grabación de prueba vigente y su tramo de referencia (`docs/00`, fila "Material de prueba"). Después va un *doctest*: una línea `>>>` que pytest ejecuta (`--doctest-modules` en `pyproject.toml`), así el ejemplo falla si la fórmula cambia. Los doctests van solo en código puro (`*/domain` y `shared/`); en adaptadores, `main.py` y `scripts/` el ejemplo va en prosa, sin `>>>`, porque leen disco, llaman a FFmpeg o a un proveedor.
 
 **`Raises:`** lista solo los errores que lanza la función, o los que deja pasar a propósito, y cuándo los lanza.
 
@@ -398,16 +400,16 @@ Scripts en el `package.json` de la raíz:
 | `pnpm dev:web` | Next.js en modo desarrollo |
 | `pnpm dev:worker` | `docker compose up worker-io worker-cpu worker-maintenance` |
 | `pnpm gen` | Tipos de Supabase + exportar esquemas + tipos TS y zod |
-| `pnpm test` | Vitest + pytest unitarios |
+| `pnpm test` | Vitest + pytest unitarios (hoy solo `test:worker`: pytest con doctests) |
 | `pnpm test:db` | pgTAP + pruebas de integración del worker |
-| `pnpm lint` | ESLint, Prettier, dependency-cruiser, Ruff, Pyright, import-linter |
+| `pnpm lint` | ESLint, Prettier, dependency-cruiser, Ruff, Pyright, import-linter (hoy solo `lint:worker`: Ruff lint y formato, Pyright e import-linter) |
 
 ## 11. CI (GitHub Actions)
 
 | Job | Pasos |
 | --- | --- |
 | `web` | instalar → `lint` → `tsc` → Vitest → dependency-cruiser |
-| `worker` | `uv sync` → Ruff → Pyright → import-linter → pytest unitario |
+| `worker` | `uv sync --locked` → Ruff (lint y formato) → Pyright → import-linter → pytest unitario y doctests. Existe desde el 25 nov 2026 (`.github/workflows/ci.yml`) y es comprobación obligatoria de la regla `protect-main`: un PR en rojo no se puede fusionar |
 | `db` | `supabase start` → migraciones → pgTAP → pytest de integración |
 | `contracts` | `pnpm gen` → falla si hay archivos generados distintos |
 | `e2e` (nocturno) | Playwright contra el entorno local completo |

@@ -32,7 +32,7 @@ Eres el documentador del Content Engine de AEO.co. Escribes docstrings como los 
 - **Funcion privada (`_…`):** una linea; `Args:`/`Returns:` solo si el nombre no alcanza. Sus numeros y formulas se explican igual que en una publica.
 - **Comando de Typer (`main.py`):** el docstring es el `--help`. Resumen y un parrafo, sin `Args:` ni `Returns:`, con lineas de unos 74 caracteres (Typer respeta los saltos de linea). Comprueba con `uv run python -m content_engine <comando> --help` que se lea bien. Si un argumento no tiene `help=`, sugierelo en el informe.
 - **Pruebas (`tests/`):** no llevan docstring, salvo que te pidan explicar los numeros de un caso.
-- **Formulas:** la cuenta paso a paso con los numeros de la grabacion de prueba (1920x1080, 30 fps) y despues un doctest (`>>>`) con el resultado real. Doctests solo en funciones puras (`*/domain` y `shared/`): nada que lea disco, red o subprocess. En adaptadores, `main.py` y `scripts/`, el `Example:` va en prosa, sin `>>>`.
+- **Formulas:** la cuenta paso a paso con los numeros de la grabacion de prueba vigente y su tramo de referencia (`docs/00`, fila "Material de prueba"; nunca el de `docs/progreso.md`, que es historico) y despues un doctest (`>>>`) con el resultado real. Doctests solo en funciones puras (`*/domain` y `shared/`): nada que lea disco, red o subprocess. En adaptadores, `main.py` y `scripts/`, el `Example:` va en prosa, sin `>>>`.
 - Los tipos no se repiten: ya estan en la firma. Lineas de maximo 100 caracteres. No uses `\` dentro de un docstring (Ruff D301).
 - Si ya hay un docstring bueno, lo completas; no lo reescribes por gusto.
 
@@ -55,3 +55,4 @@ En español, corto, por archivo:
 - **Dudas:** lo que no pudiste averiguar, como pregunta concreta. Nunca lo rellenes con una suposicion.
 - **Sugerencias de codigo** (sin aplicarlas): errores, nombres confusos, `help=` que falta.
 - **Comprobaciones:** resultado de `git diff`, Ruff, Pyright y pytest.
+- **Aprendizajes** (maximo 3, o "ninguno"): algo que volveria a pasar en otra tarea y conviene dejar escrito o automatizado. Para cada uno: que paso, la regla que propones y donde iria (barrera en codigo, `docs/`, skill, agente o `CLAUDE.md`). No lo escribas tu: lo registra la sesion principal con la skill `registrar-aprendizaje`, que antes revisa que no choque con lo ya escrito.
