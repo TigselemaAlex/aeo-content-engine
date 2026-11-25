@@ -3,7 +3,6 @@
 All positions are in mezzanine pixels and all times in clip milliseconds.
 """
 
-import math
 from bisect import bisect_right
 from dataclasses import dataclass
 from itertools import pairwise
@@ -227,7 +226,8 @@ def camera_path(
     base_scale = 1.0
 
     keyframes: list[CropKeyframe] = []
-    for frame in range(math.ceil(duration_ms * fps / 1000)):
+    # Same rounding as the mezzanine (ffmpeg_args.frame_counts): one keyframe per real frame.
+    for frame in range(round(duration_ms * fps / 1000)):
         t_ms = round(frame * 1000 / fps)
         face = face_at(faces, t_ms, cut_frame_ms)
         is_cut = frame in cut_frames
