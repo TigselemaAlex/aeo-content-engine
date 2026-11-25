@@ -3,15 +3,20 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 
 from content_engine.adapters.media.face_preview import save_face_preview
 from content_engine.adapters.media.ffmpeg import extract_audio, extract_clip
 from content_engine.adapters.media.mediapipe_faces import detect_faces
 from content_engine.adapters.transcription.assemblyai import transcribe
 from content_engine.config import Settings, get_settings
-from content_engine.piece_types.clip.domain.faces import pick_main_face
-from content_engine.piece_types.clip.domain.timeline import Segment, build_timeline
+from content_engine.piece_types.clip.domain.camera_path import camera_path
+from content_engine.piece_types.clip.domain.faces import FaceBox, pick_main_face
+from content_engine.piece_types.clip.domain.timeline import (
+    Segment,
+    build_timeline,
+    words_to_clip_ms,
+)
 from content_engine.shared.transcript import Transcript
 
 app = typer.Typer()
@@ -109,4 +114,44 @@ def detect_faces_command(
     print(
         f"Main face saved to {output} "
         f"({len(main_face)} of {len(boxes)} boxes - {len(images)} previews in {previews})"
+    )
+
+
+@app.command("camera-path")
+def camera_path_command(
+    faces_path: Path,
+    transcript_path: Path,
+    from_word: Annotated[int, typer.Option("--from", help="First word index")],
+    to_word: Annotated[int, typer.Option("--to", help="Last word index")],
+    frame_width: Annotated[int, typer.Option(help="Mezzanine width in pixels")],
+    frame_height: Annotated[int, typer.Option(help="Mezzanine height in pixels")],
+    zoom_words: Annotated[
+        list[int] | None, typer.Option("--zoom-word", help="Word index to zoom on (repeatable)")
+    ] = None,
+    output: Annotated[Path, typer.Option(help="Output JSON")] = Path("camera-path.json"),
+) -> None:
+    """Build the crop keyframes that follow the face, with zooms and cut bridges."""
+    faces = TypeAdapter(list[FaceBox]).validate_json(faces_path.read_text(encoding="utf8"))
+    transcript = Transcript.model_validate_json(transcript_path.read_text(encoding="utf8"))
+    timeline = build_timeline(
+        words=transcript.words, segment=Segment(from_word=from_word, to_word=to_word)
+    )
+    zoom_at_ms = words_to_clip_ms(
+        word_indices=zoom_words or [], words=transcript.words, timeline=timeline
+    )
+
+    path = camera_path(
+        faces=faces,
+        frame_w=frame_width,
+        frame_h=frame_height,
+        duration_ms=timeline.duration_ms,
+        zoom_at_ms=zoom_at_ms,
+        cut_at_ms=timeline.video_cut_points_ms,
+    )
+
+    output.write_text(path.model_dump_json(indent=2), encoding="utf8")
+    print(
+        f"Camera path saved to {output} "
+        f"({len(path.keyframes)} keyframes - {len(timeline.video_cut_points_ms)} cut bridges - "
+        f"{len(zoom_at_ms)} zooms - {len(path.no_face)} stretches without a face)"
     )

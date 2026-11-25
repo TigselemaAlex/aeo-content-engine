@@ -12,6 +12,7 @@ from content_engine.piece_types.clip.domain.timeline import (
     segment_to_padded_cut,
     split_at_long_pauses,
     split_out_fillers,
+    words_to_clip_ms,
 )
 from content_engine.shared.transcript import Word
 
@@ -232,6 +233,14 @@ def test_timeline_keeps_audio_and_video_in_step() -> None:
     assert timeline.duration_ms == 3000
 
 
+def test_video_cut_points_are_in_clip_time() -> None:
+    audio = [Cut(start_ms=0, end_ms=1620), Cut(start_ms=2940, end_ms=5620)]
+    timeline = Timeline(cuts=audio, video_cuts=add_j_cuts(cuts=audio, j_cut_ms=133))
+
+    # The first video cut lasts 1620 + 133 ms, so the image jumps at 1753 ms.
+    assert timeline.video_cut_points_ms == [1753]
+
+
 def test_timeline_rejects_video_cuts_with_other_duration() -> None:
     audio = [Cut(start_ms=0, end_ms=1000)]
     with pytest.raises(ValueError):
@@ -263,3 +272,15 @@ def test_build_timeline_rejects_segment_with_only_fillers() -> None:
 
     with pytest.raises(ValueError, match="fillers"):
         build_timeline(words=words, segment=Segment(from_word=1, to_word=2))
+
+
+def test_words_are_placed_in_clip_time() -> None:
+    words = make_words(count=6, fillers=(2,))
+    timeline = build_timeline(words=words, segment=Segment(from_word=0, to_word=5))
+
+    # Cuts are 0-1620 and 2940-5620: word 3 starts at 3000, which is 1620 + 60 in the clip.
+    assert words_to_clip_ms([0, 3], words, timeline) == [0, 1680]
+    with pytest.raises(ValueError, match="not in the clip"):
+        words_to_clip_ms([2], words, timeline)
+    with pytest.raises(ValueError, match="not in the transcript"):
+        words_to_clip_ms([10], words, timeline)

@@ -44,3 +44,5 @@ worker/tests/fixtures/example-*
 # Worker Outputs
 worker/faces.json
 worker/face-previews/
+worker/camera-path.json
+worker/camera-path.png
