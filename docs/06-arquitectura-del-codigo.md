@@ -19,7 +19,8 @@ Define cómo se organiza el código: el estilo, las carpetas, qué puede importa
 | Acceso a datos | Sin ORM: supabase-js con tipos generados; psycopg + Pydantic en el worker | Resumen de decisiones |
 | Contratos compartidos | Los modelos Pydantic del worker son la fuente; se exportan a JSON Schema y de ahí a tipos de TypeScript y esquemas zod | Una sola definición para Claude, worker y web |
 | Reglas de dependencia | Se verifican en CI: dependency-cruiser (TypeScript) e import-linter (Python) | Que la arquitectura no se degrade con el tiempo |
-| Calidad | TypeScript estricto + ESLint + Prettier; Ruff (lint y formato) + Pyright en modo estricto | Herramientas estándar de cada lenguaje |
+| Calidad | TypeScript estricto + ESLint + Prettier; Ruff (lint y formato, con las reglas `D` que exigen docstrings) + Pyright en modo estricto | Herramientas estándar de cada lenguaje |
+| Docstrings | Estilo Google en Python y TSDoc en TypeScript; los escribe solo el agente `documentador` y Ruff los exige en el worker (§9.1) | Cada función se entiende sin leer su código, con el mismo estilo en todo el repo |
 | Pruebas | Vitest y Playwright (e2e) en la web; pytest en el worker; pgTAP para SQL, RLS y `rpc` | §8 |
 
 ---
@@ -315,8 +316,75 @@ Los archivos generados se guardan en el repo. CI los vuelve a generar y falla si
 | Fechas | `timestamptz` en UTC en la base; se muestran en la zona del usuario |
 | Textos de la UI | En inglés (RNF-07), centralizados por módulo para cambiarlos fácil |
 | Idioma del código | Todo en inglés: nombres, comentarios, archivos de configuración (`.gitignore`, `.env.example`), mensajes de commit y de log. Los documentos de `docs/` siguen en español |
+| Docstrings | Todo módulo, clase y función lleva docstring en inglés: qué hace, argumentos, qué devuelve, errores que lanza y un ejemplo con números si hay una fórmula. Estilo Google en Python y TSDoc en TypeScript (§9.1). Los escribe el agente `documentador`; Ruff (reglas `D`) los exige en el worker |
 | Git | Rama `main` protegida; ramas `feat/…`, `fix/…`; Conventional Commits; PR con CI en verde |
 | Migraciones | Una por cambio, nunca se edita una ya aplicada; cada cambio de RLS o `rpc` con su prueba pgTAP |
+
+### 9.1 Docstrings
+
+Un docstring se escribe para que se entienda la función **sin abrir su código**. Se escriben en inglés y los escribe solo el agente `documentador` (`.claude/agents/documentador.md`).
+
+**Estilo.** En Python, Google: secciones `Args:`, `Returns:`, `Raises:` y `Example:`. Los tipos no se repiten porque ya están en la firma (Pyright `strict`). En TypeScript, TSDoc: `@param`, `@returns`, `@throws` y `@example`.
+
+**Qué lleva cada cosa**
+
+| Qué | Lleva |
+| --- | --- |
+| Módulo (incluido `__init__.py`) | Una línea con qué contiene. Si trabaja con medidas, en qué unidades: píxeles de qué video y milisegundos de qué reloj |
+| Clase y modelo Pydantic | Qué representa y `Attributes:` con cada campo, su unidad y sus límites |
+| Constante de módulo | Un docstring justo debajo (el editor lo muestra al pasar el mouse) que dice de dónde sale el valor |
+| Función pública | Resumen de una línea en imperativo (`Return…`, `Build…`). Después, un párrafo con cómo funciona y las secciones `Args:`, `Returns:`, `Raises:` (si lanza) y `Example:` (si hay una fórmula o el resultado no es obvio) |
+| Función privada (`_…`) | Una línea. `Args:` y `Returns:` solo si el nombre no alcanza. Sus números y fórmulas se explican igual que en una pública |
+| Comando de Typer (`main.py`) | El docstring es el texto de `--help`: resumen y un párrafo, sin `Args:` ni `Returns:`, con líneas de unos 74 caracteres (Typer respeta los saltos de línea y la ayuda se lee en una terminal de 80 columnas). Cada argumento se describe con `help=` en `typer.Argument` o `typer.Option` |
+| Pruebas (`tests/`) | Sin docstring: el nombre de la prueba dice qué comprueba. Se agrega uno solo si el caso tiene números que hay que explicar. Ruff no lo exige |
+
+**De dónde sale cada número.** Cada número que no sea obvio (0 o 1, por ejemplo, lo son) dice su origen, en una de estas tres formas:
+
+1. **Regla del producto:** cita el documento y la sección. Ejemplo: `zoom.max_scale of the Edit Spec (docs/03 §5.3)`.
+2. **Cambio de unidades:** la cuenta con sus unidades. Ejemplo: `ms x 30 / 1000 -> frame (the mezzanine runs at 30 fps)`.
+3. **Valor elegido probando:** con qué se probó y qué pasó. Ejemplo: `tuned on the test recording: without it the window changed direction 73 times in 33.5 s, with 5 % only 24 (docs/00)`.
+
+Si el agente no encuentra el origen en `docs/`, en el código o en las pruebas, lo pregunta. No lo inventa.
+
+**Fórmulas.** Se explican con la cuenta escrita paso a paso, usando los números de la grabación de prueba (1920x1080 a 30 fps). Después va un *doctest*: una línea `>>>` que pytest ejecuta (`--doctest-modules` en `pyproject.toml`), así el ejemplo falla si la fórmula cambia. Los doctests van solo en código puro (`*/domain` y `shared/`); en adaptadores, `main.py` y `scripts/` el ejemplo va en prosa, sin `>>>`, porque leen disco, llaman a FFmpeg o a un proveedor.
+
+**`Raises:`** lista solo los errores que lanza la función, o los que deja pasar a propósito, y cuándo los lanza.
+
+**Ejemplo real** (`piece_types/clip/domain/camera_path.py`):
+
+```python
+def crop_window_size(frame_w: int, frame_h: int, scale: float = 1.0) -> tuple[int, int]:
+    """Return the width and height of the 9:16 crop window for a frame.
+
+    The window takes the full frame height and a width of height x 9 / 16,
+    the shape of the vertical output video (1080x1920, docs/03 §5.3).
+    A scale above 1 shrinks both sides by that factor, to zoom in.
+    Both sides are rounded to the nearest even number because yuv420p
+    video stores color at half resolution and needs even sizes (docs/03 §5.3).
+
+    Args:
+        frame_w: Width of the mezzanine frame, in pixels.
+        frame_h: Height of the mezzanine frame, in pixels.
+        scale: Zoom factor. 1.0 is no zoom, 1.10 a cut bridge and 1.15 a full
+            zoom (Edit Spec `zoom.max_scale`, docs/03 §5.3).
+
+    Returns:
+        A `(width, height)` tuple in pixels, both even.
+
+    Raises:
+        ValueError: If `scale` is below 1, or if the frame is narrower than
+            9:16 (for example, a 1080x2340 phone screen recording).
+
+    Example:
+        1080 x 9 / 16 = 607.5, rounded to the even 608. With scale 1.15:
+        607.5 / 1.15 = 528.3 -> 528, and 1080 / 1.15 = 939.1 -> 940.
+
+        >>> crop_window_size(1920, 1080)
+        (608, 1080)
+        >>> crop_window_size(1920, 1080, scale=1.15)
+        (528, 940)
+    """
+```
 
 ---
 
