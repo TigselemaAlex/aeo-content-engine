@@ -137,12 +137,12 @@ class Timeline(BaseModel):
                 `ValidationError`.
         """
         if len(self.cuts) != len(self.video_cuts):
-            raise ValueError("video_cuts must be have one per audio cut")
+            raise ValueError("video_cuts must have one cut per audio cut")
         video_cut_duration_ms = sum(
             video_cut.end_ms - video_cut.start_ms for video_cut in self.video_cuts
         )
         if video_cut_duration_ms != self.duration_ms:
-            raise ValueError("video_vuts must last the same as the audio cuts")
+            raise ValueError("video_cuts must last the same as the audio cuts")
         return self
 
     @property
@@ -442,9 +442,9 @@ def frames_to_ms(frames: int, fps: int = 30) -> int:
         167
     """
     if frames < 0:
-        raise ValueError("frames mut not be negative")
+        raise ValueError("frames must not be negative")
     if fps <= 0:
-        raise ValueError("fps mut be positive")
+        raise ValueError("fps must be positive")
 
     return round(frames * 1000 / fps)
 

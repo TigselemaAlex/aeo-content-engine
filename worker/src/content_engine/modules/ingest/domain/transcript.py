@@ -20,11 +20,13 @@ but does not mark them (decision "Muletillas y glosario", docs/00). "uh-huh" and
 def is_filler_word(text: str) -> bool:
     """Return whether a transcribed word is a filler such as "um" or "uh".
 
-    The word is lowercased and the characters `.`, `,`, `?` and `!` are removed
-    from both ends, because the provider writes punctuation inside the word
-    (`"um,"`). Then it must equal one entry of `FILLER_WORDS`: a word that only
-    starts like a filler ("umbrella") is not one. The transcription adapter uses
-    it to set `Word.is_disfluency` (docs/03 §3).
+    The word is lowercased and spaces and the characters `.`, `,`, `?`, `!` and `-`
+    are removed from both ends only. The provider writes punctuation inside the word
+    (`"um,"`) and ends a word cut off mid-way with a hyphen (the test transcript has
+    `"haven't-"`), so a cut-off filler such as `"uh-"` still counts. A hyphen in the
+    middle stays, so `"Uh-huh"` is not a filler. Then the word must equal one entry
+    of `FILLER_WORDS`: a word that only starts like a filler ("umbrella") is not one.
+    The transcription adapter uses it to set `Word.is_disfluency` (docs/03 §3).
 
     Args:
         text: One word as the provider wrote it, punctuation included.
@@ -35,9 +37,13 @@ def is_filler_word(text: str) -> bool:
     Example:
         >>> is_filler_word("Um,")
         True
+        >>> is_filler_word("uh-")
+        True
         >>> is_filler_word("umbrella")
         False
         >>> is_filler_word("Uh-huh")
         False
+        >>> is_filler_word("haven't-")
+        False
     """
-    return text.lower().strip(".,?!") in FILLER_WORDS
+    return text.lower().strip(" .,?!-") in FILLER_WORDS

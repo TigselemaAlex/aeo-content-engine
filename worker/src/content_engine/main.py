@@ -79,12 +79,15 @@ def hello() -> None:
 
 
 @app.command("extract-audio")
-def extract_audio_command(video: Path, output: Path) -> None:
+def extract_audio_command(
+    video: Annotated[Path, typer.Argument(help="Video to take the audio from")],
+    output: Annotated[Path, typer.Argument(help="Audio file to write (.m4a)")],
+) -> None:
     """Extract the audio track of a video, for transcription.
 
     Writes the audio of VIDEO to OUTPUT as mono 16 kHz AAC, a light file
-    to send to AssemblyAI (give OUTPUT the .m4a extension). Prints the size
-    of the file in MB (1 MB = 1,000,000 bytes).
+    to send to AssemblyAI (the container follows the extension of OUTPUT).
+    Prints the size of the file in MB (1 MB = 1,000,000 bytes).
     """
     extract_audio(video_path=video, audio_path=output)
     size_mb = output.stat().st_size / 1_000_000
@@ -92,7 +95,10 @@ def extract_audio_command(video: Path, output: Path) -> None:
 
 
 @app.command("transcribe")
-def transcribe_audio_command(audio: Path, output: Path) -> None:
+def transcribe_audio_command(
+    audio: Annotated[Path, typer.Argument(help="Audio file from extract-audio")],
+    output: Annotated[Path, typer.Argument(help="Transcript JSON to write")],
+) -> None:
     """Transcribe an audio file with AssemblyAI and save the transcript as JSON.
 
     Sends AUDIO with fillers kept ("um", "uh"), speaker labels and the
@@ -120,19 +126,19 @@ def transcribe_audio_command(audio: Path, output: Path) -> None:
 
 @app.command("cut")
 def cut_command(
-    video: Path,
-    transcript_path: Path,
+    video: Annotated[Path, typer.Argument(help="Original video")],
+    transcript_path: Annotated[Path, typer.Argument(help="Transcript JSON from transcribe")],
     from_word: Annotated[int, typer.Option("--from", help="First word index")],
     to_word: Annotated[int, typer.Option("--to", help="Last word index")],
     output: Annotated[Path, typer.Option(help="Output video")] = Path("mezzanine.mp4"),
 ) -> None:
     """Cut a word range out of the video, without fillers or long pauses.
 
-    Reads the JSON of the transcribe command, keeps the words from --from to
-    --to (both included), drops the fillers, splits at pauses longer than
-    500 ms, adds J cuts and writes the mezzanine: the source resolution at
-    30 fps, H.264 with AAC audio. Prints the number of cuts and the length
-    of the clip in milliseconds.
+    Keeps the words of the transcript from --from to --to (both included),
+    drops the fillers, splits at pauses longer than 500 ms, adds J cuts and
+    writes the mezzanine: the source resolution at 30 fps, H.264 with AAC
+    audio. Prints the number of cuts and the length of the clip in
+    milliseconds.
     """
     transcript = Transcript.model_validate_json(transcript_path.read_text(encoding="utf8"))
     timeline = build_timeline(
@@ -148,7 +154,7 @@ def cut_command(
 
 @app.command("detect-faces")
 def detect_faces_command(
-    video: Path,
+    video: Annotated[Path, typer.Argument(help="Mezzanine from cut")],
     output: Annotated[Path, typer.Option(help="Output JSON")] = Path("faces.json"),
     previews: Annotated[Path, typer.Option(help="Folder for preview images")] = Path(
         "face-previews"
@@ -159,12 +165,12 @@ def detect_faces_command(
 ) -> None:
     """Find the main face over time; save it as JSON plus preview images.
 
-    Detects faces in VIDEO (normally the mezzanine from the cut command) 10
-    times per second, keeps the biggest and most persistent face, and saves
-    its boxes in pixels of the video, with times in milliseconds from its
-    start. Also draws 5 of the boxes on their frames as JPG images, to check
-    them by eye. Run it from worker/ so the default --model path is found.
-    Prints how many boxes the main face kept out of all the boxes found.
+    Detects faces in VIDEO 10 times per second, keeps the biggest and most
+    persistent face, and saves its boxes in pixels of the video, with times
+    in milliseconds from its start. Also draws 5 of the boxes on their
+    frames as JPG images, to check them by eye. Run it from worker/ so the
+    default --model path is found. Prints how many boxes the main face kept
+    out of all the boxes found.
     """
     boxes = detect_faces(video_path=video, model_path=model)
     main_face = pick_main_face(boxes=boxes)
@@ -183,8 +189,8 @@ def detect_faces_command(
 
 @app.command("camera-path")
 def camera_path_command(
-    faces_path: Path,
-    transcript_path: Path,
+    faces_path: Annotated[Path, typer.Argument(help="Faces JSON from detect-faces")],
+    transcript_path: Annotated[Path, typer.Argument(help="Transcript JSON used with cut")],
     from_word: Annotated[int, typer.Option("--from", help="First word index")],
     to_word: Annotated[int, typer.Option("--to", help="Last word index")],
     frame_width: Annotated[int, typer.Option(help="Mezzanine width in pixels")],
@@ -196,8 +202,8 @@ def camera_path_command(
 ) -> None:
     """Build the crop keyframes that follow the face, with zooms and cut bridges.
 
-    Takes the JSON of the detect-faces command, plus the same transcript,
-    --from and --to used with cut, so the cut points match the mezzanine.
+    Rebuilds the cuts from the transcript, --from and --to, which must be
+    the same ones given to cut so the cut points match the mezzanine.
     Writes one 9:16 crop window per frame at 30 fps (time in milliseconds,
     then x, y, width and height in mezzanine pixels) and the stretches
     without a face. Prints the number of keyframes, cut bridges, zooms and
