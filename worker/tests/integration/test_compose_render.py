@@ -8,9 +8,13 @@ checks with `match_frames` that no frame matches a neighbour's window better tha
 own. Measured on 26 nov 2026: without `exact=1`, frames 2, 4, 6... fail (crop rounds odd
 x down to even); with the commands timed at each keyframe's `t_ms`, frames 2, 5, 8...
 fail (one frame late every third frame). Skipped when `ffmpeg` or `ffprobe` is not on
-the PATH.
+the PATH, except in CI (the `CI` environment variable is set; GitHub Actions sets
+`CI=true`): there a missing FFmpeg fails the test instead, so the guard can never silently
+stop running, and the CI job installs FFmpeg with apt before pytest. Checked on 26 nov 2026
+with `ffmpeg` hidden from the PATH: 1 failed with `CI=true`, 1 skipped without it.
 """
 
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -21,9 +25,13 @@ from content_engine.adapters.media.clip_probe import match_frames, probe_video
 from content_engine.adapters.media.ffmpeg import compose_clip
 from content_engine.piece_types.clip.domain.camera_path import CropKeyframe
 
+FFMPEG_MISSING = shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None
+
+# Skipped on a machine without FFmpeg, but never in CI (GitHub sets CI=true): there a
+# missing FFmpeg must fail, or the guard silently stops running.
 pytestmark = pytest.mark.skipif(
-    shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None,
-    reason="needs ffmpeg and ffprobe on the PATH",
+    FFMPEG_MISSING and not os.environ.get("CI"),
+    reason="needs ffmpeg and ffprobe on the PATH (required in CI)",
 )
 
 

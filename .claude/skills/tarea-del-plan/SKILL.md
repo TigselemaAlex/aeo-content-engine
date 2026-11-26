@@ -45,7 +45,7 @@ Cuando se cumpla el "**terminaste cuando**" del documento:
 3. Pasa el agente `explicador` por el codigo de la tarea (dale el rango `main...HEAD`, no tu explicacion: es independiente). Si devuelve una pagina, publicala como artifact. Muestra a Alex sus diferencias con `docs/` y sus preguntas de comprobacion antes de abrir el PR.
 4. Marca la tarea y sus subtareas como hechas en ClickUp (space **Content Engine**, carpeta **Fase 0 y Fase 1**, listas S1 a S6).
 5. **Anota el progreso**: agrega una linea a `docs/progreso.md` (fecha, tarea terminada y una nota breve si hace falta) y reemplaza la linea de **Progreso** en `CLAUDE.md` con la ultima tarea cerrada y la siguiente. Una linea, no un informe.
-6. Si en la tarea aparecio una decision nueva o algo que contradice un documento, propon actualizar `docs/` y `docs/00-resumen-decisiones.md`. El agente `guardian-de-docs` sirve para esa revision.
+6. Si en la tarea aparecio una decision nueva o algo que contradice un documento, propon actualizar `docs/` y `docs/00-resumen-decisiones.md`. El agente `guardian-de-docs` sirve para esa revision. Busca tambien con Grep en todo `docs/` las palabras de la decision (por ejemplo `sendcmd`, `PyAV`, "se valida en la Fase 0") y reescribe los textos que la siguen dando por pendiente (riesgos, tareas futuras de `07`); si la tarea midio un tiempo real, anotalo en `03` §9 (26 nov 2026: al cerrar la T2.3 quedaron asi `03` §10, §11 y la T2.7).
 7. Registra los aprendizajes de la tarea (los que propusieron los agentes y los que surgieron en la conversacion) con la skill `registrar-aprendizaje`.
 
 ## Si lo que se pide no es una tarea del plan

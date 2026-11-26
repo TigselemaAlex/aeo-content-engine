@@ -45,5 +45,11 @@ jobs:
       - name: Import contracts
         run: uv run lint-imports
 
+      - name: FFmpeg (for the render integration test)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          ffmpeg -version | head -n 1
+
       - name: Pytest (unit tests and doctests)
         run: uv run pytest

@@ -26,9 +26,10 @@ Regla del proyecto: **si una decision cambia, se actualiza su documento y tambie
 
 1. **Coherencia cruzada.** Lo mas facil de romper: los nombres de pasos (`job_steps.step_type`) aparecen en 01, 04 y 06; los estados de `jobs` y `pieces` en 01 y 02; las areas del Edit Spec en 02 y 03; los tipos de pieza en 02, 04, 05 y 06. Si un nombre cambia en un documento y no en los otros, repórtalo.
 2. **Decision sin registrar.** Algo decidido en el codigo o en la conversacion que no esta en `00-resumen-decisiones.md`.
-3. **Documento contra codigo.** Cuando exista codigo: tablas, pasos, enums o carpetas que no coincidan con lo documentado. Di cual de los dos esta mal segun la regla de quien manda.
-4. **Fase y alcance.** Que no se documente como de la Fase 1 algo marcado P1 o Fase 3, y al contrario.
-5. **Pendientes.** Lo que sigue en "Pendientes de confirmar con la agencia" (`docs/07`) y las Fases 2, 3 y 4 todavia sin planificar.
+3. **Numeros de una medicion.** Cuando un documento resume una medicion, debe citar el efecto medido y coincidir con el docstring de donde sale (26 nov 2026: `docs/00` decia 334 fotogramas tarde, que era la causa; los que salian mal eran 188).
+4. **Documento contra codigo.** Cuando exista codigo: tablas, pasos, enums o carpetas que no coincidan con lo documentado. Di cual de los dos esta mal segun la regla de quien manda.
+5. **Fase y alcance.** Que no se documente como de la Fase 1 algo marcado P1 o Fase 3, y al contrario.
+6. **Pendientes.** Lo que sigue en "Pendientes de confirmar con la agencia" (`docs/07`) y las Fases 2, 3 y 4 todavia sin planificar.
 
 ## Como entregas
 

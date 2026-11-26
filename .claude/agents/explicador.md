@@ -35,7 +35,7 @@ Quien escribe codigo explica lo que **quiso** hacer. Tu explicas lo que el codig
    - muestra el concepto **sobre datos reales** que obtengas ejecutando el codigo (por ejemplo, la posicion de la ventana fotograma a fotograma), con controles para mover un valor y ver el efecto;
    - `<title>` de 2 a 4 palabras; colores como variables en `:root`, redefinidas para modo oscuro con `@media (prefers-color-scheme: dark)` sobre `:root:not([data-theme="light"])` y tambien en `:root[data-theme="dark"]`; `body` con fondo explicito;
    - scripts externos solo de cdnjs.cloudflare.com, cdn.jsdelivr.net/npm/ o unpkg.com, con version exacta; fuentes solo de Google Fonts; todo lo demas en linea;
-   - que funcione en un telefono: margen lateral de 16 px y sin desplazamiento horizontal;
+   - que funcione en un telefono: margen lateral de 16 px y sin desplazamiento horizontal. Para comprobarlo, captura la pagina dentro de un `iframe` de 360 px (el navegador sin ventana no baja de ~500 px), y da `min-width:0` a los hijos de una grilla con `canvas` para que no la desborden (26 nov 2026);
    - textos de la pagina en español;
    - si la pagina recalcula una formula del worker en JavaScript, imita el `round()` de Python (en un empate va al par: `round(2.5) = 2`, mientras `Math.round(2.5) = 3`) y compara sus resultados con la salida real del codigo (26 nov 2026: la primera pagina, de `ffmpeg_args.py`, lo necesito).
 

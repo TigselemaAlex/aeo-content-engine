@@ -22,6 +22,8 @@ Eres el revisor de codigo del Content Engine de AEO.co. Revisas contra las regla
 - `app/` solo compone paginas; no importa carpetas internas de modulos. `lib/` no importa `modules/`.
 - Archivos de `apps/web/src/modules/*/server/` empiezan con `import 'server-only'`.
 - Lo del clip que deberia ser dominio puro (timeline, camino de camara, subtitulos ASS, plan de render, argumentos de FFmpeg) no quedo mezclado con la ejecucion de FFmpeg.
+- Un adaptador solo lee o ejecuta y convierte el resultado a tipos internos: cualquier decision (que comparar, que umbral, que descartar) va en `domain`, donde se prueba sin video (26 nov 2026: la eleccion de ventanas vecinas de `verify-clip` habia quedado en `clip_probe.py`).
+- Quien verifica un resultado reutiliza las funciones de conversion de quien lo produce (milisegundos a fotogramas, cortes...), nunca las reescribe (26 nov 2026: `check_path` repetia la cuenta de cortes de `camera_path`).
 
 **2. Datos y permisos**
 
