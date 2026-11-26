@@ -1,10 +1,15 @@
-"""Build the FFmpeg arguments that cut a timeline into the mezzanine (docs/03 §5.2).
+"""Build the FFmpeg arguments that cut the mezzanine and compose the vertical clip.
 
+Two commands: one cuts a timeline into the mezzanine (docs/03 §5.2), the other crops
+the mezzanine along the camera path and scales it to the 1080x1920 clip (docs/03 §5.6).
 Pure code: it only builds lists of strings; the media adapter runs FFmpeg. Cut times
 are milliseconds of the original video and FFmpeg receives them in seconds. Frame
-counts are frames of the mezzanine, which runs at a constant 30 fps.
+counts are frames of the mezzanine, which runs at a constant 30 fps, and crop windows
+are mezzanine pixels.
 """
 
+from content_engine.piece_types.clip.domain.camera_path import CropKeyframe
+from content_engine.piece_types.clip.domain.sendcmd import CROP_FILTER
 from content_engine.piece_types.clip.domain.timeline import Cut, Timeline
 
 VIDEO_READ_EXTRA_MS = 100
@@ -245,3 +250,139 @@ def build_extract_args(source: str, timeline: Timeline, output: str, fps: int = 
     )
 
     return args
+
+
+OUTPUT_W, OUTPUT_H = 1080, 1920
+"""Width and height of the vertical clip, in pixels: 9:16 (docs/03 §5.3 and §5.6)."""
+
+COMPOSE_CRF = 18
+"""H.264 quality of the vertical clip (`-crf`): the lower, the better and the larger.
+
+Provisional: picked by the developer, not measured; T2.7 measures the time per clip.
+The mezzanine uses CRF 16 (docs/03 §5.2).
+"""
+
+COMPOSE_PRESET = "veryfast"
+"""x264 speed preset of the vertical clip (`-preset`): faster ones encode quicker, larger.
+
+Provisional: picked by the developer, not measured; T2.7 measures the time per clip. The
+mezzanine uses `veryfast` too (docs/03 §5.2).
+"""
+
+SCALE_FLAGS = "bicubic"
+"""Scaler FFmpeg uses to enlarge each crop window to 1080x1920.
+
+Chosen by Alex on 26 nov 2026 from a comparison on the test stretch (33.5 s): encode
+time, and detail kept, measured by shrinking the output back and comparing it with the
+source crop. bilinear 6.0 s and 43.8 dB, bicubic 6.7 s and 45.4 dB, lanczos 8.1 s and
+44.5 dB, spline 17.3 s and 44.4 dB. bicubic and lanczos look the same on the face, and
+bicubic keeps the most detail for less time.
+"""
+
+
+def compose_filter(first: CropKeyframe, commands_file: str) -> str:
+    """Build the `-filter_complex` graph that crops along the camera path and scales to 9:16.
+
+    Four filters on the mezzanine video, in order:
+
+    1. `sendcmd` reads the script of `crop_commands` and moves the crop window on
+       every frame where it changes.
+    2. `crop@camera` (`CROP_FILTER`) starts with the window of the first frame. It
+       needs `exact=1`: without it, crop rounds odd x and y down to even on yuv420p
+       video (its color is stored at half resolution), so the camera moved in 2 px
+       steps. Measured on the test stretch (1004 frames): without `exact=1`, 53
+       frames matched a neighbour's window better than their own; with it, 0.
+    3. `scale` enlarges each window to `OUTPUT_W` x `OUTPUT_H` with `SCALE_FLAGS`.
+       The crop size changes during the clip with the zooms and cut bridges (92
+       sizes and 208 size changes on the test stretch); scale adapts to each new
+       input size, so the output always stays 1080x1920. `setsar=1` keeps pixels
+       square: a 552x982 window is not exactly 9:16, and scale would otherwise mark
+       the output with a non-square pixel shape to keep the window's proportions.
+    4. `format=yuv420p`, the pixel format of the clip (docs/03 §5.6).
+
+    Args:
+        first: Crop window of frame 0, from `camera_path`.
+        commands_file: Path of the `sendcmd` script, as FFmpeg reads it. `compose_clip`
+            passes a bare file name, because a Windows path such as `C:/...` breaks
+            the filter on its `:`.
+
+    Returns:
+        The graph, with the mezzanine as input `[0:v]` and the clip video as `[v]`.
+
+    Example:
+        The test stretch starts with the 608x1080 window at x 820:
+
+        >>> first = CropKeyframe(t_ms=0, x=820, y=0, w=608, h=1080)
+        >>> for part in compose_filter(first, "crop.cmd").split(","):
+        ...     print(part)
+        [0:v]sendcmd=f=crop.cmd
+        crop@camera=608:1080:820:0:exact=1
+        scale=1080:1920:flags=bicubic
+        setsar=1
+        format=yuv420p[v]
+    """
+    return (
+        f"[0:v]sendcmd=f={commands_file},"
+        f"{CROP_FILTER}={first.w}:{first.h}:{first.x}:{first.y}:exact=1,"
+        f"scale={OUTPUT_W}:{OUTPUT_H}:flags={SCALE_FLAGS},setsar=1,format=yuv420p[v]"
+    )
+
+
+def build_compose_args(
+    mezzanine: str, first: CropKeyframe, commands_file: str, output: str, fps: int = 30
+) -> list[str]:
+    """Build the FFmpeg arguments that turn the mezzanine into the vertical clip.
+
+    The video goes through `compose_filter` and is encoded as H.264 High in yuv420p at
+    `fps`, with `+faststart` so it can start playing before it is fully downloaded
+    (docs/03 §5.6), with `COMPOSE_PRESET` and `COMPOSE_CRF`. The audio is copied from
+    the mezzanine (AAC 48 kHz, docs/03 §5.2) without re-encoding; normalizing its
+    loudness comes in T2.5. `-y` overwrites `output` if it exists.
+
+    Args:
+        mezzanine: Path of the mezzanine, from `extract_clip`.
+        first: Crop window of frame 0, from `camera_path`.
+        commands_file: Path of the `sendcmd` script, as FFmpeg reads it (see
+            `compose_filter`).
+        output: Path of the clip to write.
+        fps: Frame rate of the clip. 30 by default (docs/03 §5.6).
+
+    Returns:
+        The arguments to pass after the `ffmpeg` program name.
+
+    Example:
+        >>> first = CropKeyframe(t_ms=0, x=820, y=0, w=608, h=1080)
+        >>> args = build_compose_args("mezzanine.mp4", first, "crop.cmd", "clip.mp4")
+        >>> args[:3], args[5:9]
+        (['-y', '-i', 'mezzanine.mp4'], ['-map', '[v]', '-map', '0:a'])
+        >>> args[9:17]
+        ['-c:v', 'libx264', '-profile:v', 'high', '-preset', 'veryfast', '-crf', '18']
+        >>> args[17:]
+        ['-r', '30', '-c:a', 'copy', '-movflags', '+faststart', 'clip.mp4']
+    """
+    return [
+        "-y",
+        "-i",
+        mezzanine,
+        "-filter_complex",
+        compose_filter(first=first, commands_file=commands_file),
+        "-map",
+        "[v]",
+        "-map",
+        "0:a",
+        "-c:v",
+        "libx264",
+        "-profile:v",
+        "high",
+        "-preset",
+        COMPOSE_PRESET,
+        "-crf",
+        str(COMPOSE_CRF),
+        "-r",
+        str(fps),
+        "-c:a",
+        "copy",
+        "-movflags",
+        "+faststart",
+        output,
+    ]

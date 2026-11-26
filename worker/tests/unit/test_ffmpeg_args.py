@@ -1,7 +1,10 @@
 import pytest
 
+from content_engine.piece_types.clip.domain.camera_path import CropKeyframe
 from content_engine.piece_types.clip.domain.ffmpeg_args import (
+    build_compose_args,
     build_extract_args,
+    compose_filter,
     concat_filter,
     frame_counts,
     input_args,
@@ -135,3 +138,26 @@ def test_build_extract_args_cuts_video_and_audio_and_joins_them() -> None:
         "48000",
         "mezzanine.mp4",
     ]
+
+
+def test_compose_filter_crops_exactly_then_scales_to_vertical() -> None:
+    first = CropKeyframe(t_ms=0, x=820, y=0, w=608, h=1080)
+
+    graph = compose_filter(first=first, commands_file="crop.cmd")
+
+    assert graph == (
+        "[0:v]sendcmd=f=crop.cmd,crop@camera=608:1080:820:0:exact=1,"
+        "scale=1080:1920:flags=bicubic,setsar=1,format=yuv420p[v]"
+    )
+
+
+def test_build_compose_args_keeps_the_mezzanine_audio() -> None:
+    first = CropKeyframe(t_ms=0, x=820, y=0, w=608, h=1080)
+
+    args = build_compose_args("mezzanine.mp4", first, "crop.cmd", "clip.mp4")
+
+    assert args[:3] == ["-y", "-i", "mezzanine.mp4"]
+    assert args[args.index("-map") + 1 :][:3] == ["[v]", "-map", "0:a"]
+    assert args[args.index("-c:a") + 1] == "copy"
+    assert args[args.index("-r") + 1] == "30"
+    assert args[-1] == "clip.mp4"

@@ -12,18 +12,26 @@ from typing import Annotated
 import typer
 from pydantic import TypeAdapter, ValidationError
 
+from content_engine.adapters.media.clip_probe import match_frames, probe_video
 from content_engine.adapters.media.face_preview import save_face_preview
-from content_engine.adapters.media.ffmpeg import extract_audio, extract_clip
+from content_engine.adapters.media.ffmpeg import compose_clip, extract_audio, extract_clip
 from content_engine.adapters.media.mediapipe_faces import detect_faces
 from content_engine.adapters.transcription.assemblyai import transcribe
 from content_engine.config import Settings, get_settings
-from content_engine.piece_types.clip.domain.camera_path import camera_path
+from content_engine.piece_types.clip.domain.camera_path import (
+    CameraPath,
+    camera_path,
+    cut_at_frames,
+)
 from content_engine.piece_types.clip.domain.faces import FaceBox, pick_main_face
+from content_engine.piece_types.clip.domain.ffmpeg_args import OUTPUT_H, OUTPUT_W
+from content_engine.piece_types.clip.domain.path_checks import check_path
 from content_engine.piece_types.clip.domain.timeline import (
     Segment,
     build_timeline,
     words_to_clip_ms,
 )
+from content_engine.piece_types.clip.domain.verify import verify_clip
 from content_engine.shared.transcript import Transcript
 
 app = typer.Typer()
@@ -36,7 +44,7 @@ def main() -> None:
 
     Development commands that run one step of the clip pipeline on local
     files: extract the audio, transcribe it, cut the mezzanine, find the
-    face and build the camera path.
+    face, build the camera path, compose the vertical clip and verify it.
     """
 
 
@@ -233,3 +241,71 @@ def camera_path_command(
         f"({len(path.keyframes)} keyframes - {len(timeline.video_cut_points_ms)} cut bridges - "
         f"{len(zoom_at_ms)} zooms - {len(path.no_face)} stretches without a face)"
     )
+
+
+@app.command("compose")
+def compose_command(
+    mezzanine: Annotated[Path, typer.Argument(help="Mezzanine from cut")],
+    camera_path_file: Annotated[Path, typer.Argument(help="Camera path JSON from camera-path")],
+    output: Annotated[Path, typer.Option(help="Output vertical video")] = Path("clip.mp4"),
+) -> None:
+    """Crop the mezzanine along the camera path into a 1080x1920 clip.
+
+    Moves a crop window over MEZZANINE frame by frame, as CAMERA_PATH_FILE
+    says, scales each window to 1080x1920 and writes the vertical clip to
+    --output: H.264 at 30 fps, with the audio of the mezzanine copied as
+    it is. Prints the number of frames.
+    """
+    path = CameraPath.model_validate_json(camera_path_file.read_text(encoding="utf8"))
+    compose_clip(mezzanine_path=mezzanine, keyframes=path.keyframes, output_path=output)
+    print(
+        f"Vertical clip saved to {output} ({len(path.keyframes)} frames at {OUTPUT_W}x{OUTPUT_H})"
+    )
+
+
+@app.command("verify-clip")
+def verify_clip_command(
+    clip: Annotated[Path, typer.Argument(help="Vertical clip from compose")],
+    mezzanine: Annotated[Path, typer.Argument(help="Mezzanine the clip was made from")],
+    camera_path_file: Annotated[Path, typer.Argument(help="Camera path JSON used with compose")],
+    faces_path: Annotated[Path, typer.Argument(help="Faces JSON from detect-faces")],
+    transcript_path: Annotated[Path, typer.Argument(help="Transcript JSON used with cut")],
+    from_word: Annotated[int, typer.Option("--from", help="First word index")],
+    to_word: Annotated[int, typer.Option("--to", help="Last word index")],
+) -> None:
+    """Check that a vertical clip follows its camera path smoothly.
+
+    Give it the same files and --from and --to used to make the clip.
+    Checks the size (1080x1920), 30 fps, one frame per keyframe and audio
+    within 1 frame of the video; that every frame shows its own crop
+    window and each cut bridge lands on its cut; that the face is not cut
+    more than 5 % per side (or evenly, when it does not fit); and that the
+    window has no jumps over 20 px per frame and no wobbles. Prints one
+    line per check and exits with code 1 if any fails.
+    """
+    path = CameraPath.model_validate_json(camera_path_file.read_text(encoding="utf8"))
+    faces = TypeAdapter(list[FaceBox]).validate_json(faces_path.read_text(encoding="utf8"))
+    transcript = Transcript.model_validate_json(transcript_path.read_text(encoding="utf8"))
+    timeline = build_timeline(
+        words=transcript.words, segment=Segment(from_word=from_word, to_word=to_word)
+    )
+    cut_frames = cut_at_frames(timeline.video_cut_points_ms, timeline.duration_ms)
+
+    source = probe_video(mezzanine)
+
+    checks = verify_clip(
+        info=probe_video(clip),
+        matches=match_frames(mezzanine, clip, path.keyframes),
+        path=check_path(
+            path.keyframes, faces, cut_frames, frame_w=source.width, frame_h=source.height
+        ),
+        cut_frames=cut_frames,
+    )
+
+    for check in checks:
+        mark = "OK  " if check.ok else "FAIL"
+        print(f"{mark} {check.name:<24} {check.value}  (limit {check.limit})")
+    failed = sum(1 for check in checks if not check.ok)
+    print(f"{len(checks) - failed} of {len(checks)} checks passed")
+    if failed:
+        raise typer.Exit(code=1)
