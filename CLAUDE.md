@@ -26,6 +26,7 @@ Todo se carga desde aquí: **no** crees `CLAUDE.md` dentro de subcarpetas.
 | `revisor-de-codigo` | Revisar código contra las reglas del proyecto, al cerrar una tarea o antes de dar un cambio por terminado |
 | `guardian-de-docs` | Ver si un cambio o decisión dejó los documentos incoherentes |
 | `documentador` | Escribir o mejorar docstrings (Python y TypeScript). Es **el único** que los escribe: al crear o cambiar código, pásalo por él |
+| `explicador` | Explicar código que no escribió, con números reales del tramo de prueba, y marcar dónde no coincide con `docs/`. Al cerrar cada tarea, antes de aprobar el PR. Hace una página interactiva solo si hay fórmulas o un concepto nuevo |
 
 Los agentes no escriben reglas: las proponen en la sección "Aprendizajes" de su informe, y la sesión principal las registra con la skill `registrar-aprendizaje`.
 
