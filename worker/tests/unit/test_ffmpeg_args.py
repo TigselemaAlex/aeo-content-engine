@@ -6,6 +6,8 @@ from content_engine.piece_types.clip.domain.ffmpeg_args import (
     build_extract_args,
     compose_filter,
     concat_filter,
+    ffmpeg_major_version,
+    ffmpeg_supports_variable_crop,
     frame_counts,
     input_args,
     seconds,
@@ -161,3 +163,23 @@ def test_build_compose_args_keeps_the_mezzanine_audio() -> None:
     assert args[args.index("-c:a") + 1] == "copy"
     assert args[args.index("-r") + 1] == "30"
     assert args[-1] == "clip.mp4"
+
+
+@pytest.mark.parametrize(
+    ("first_line", "major", "supported"),
+    [
+        ("ffmpeg version 9.0.2-full_build-www.gyan.dev Copyright (c) 2000-2026", 9, True),
+        ("ffmpeg version n9.0.2-963-g4d831360c9-20251125 Copyright (c) 2000-2026", 9, True),
+        ("ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers", 6, False),
+        ("ffmpeg version N-121234-gabcdef0123 Copyright (c) 2000-2026", None, True),
+    ],
+)
+def test_ffmpeg_version_gate_for_the_variable_crop(
+    first_line: str, major: int | None, supported: bool
+) -> None:
+    # Ubuntu 24.04's 6.1.1 crashes when crop changes size (CI, 26 nov 2026); a dev build
+    # without a number cannot be judged, so it is let through.
+    output = first_line + "\nbuilt with gcc 14\n"
+
+    assert ffmpeg_major_version(output) == major
+    assert ffmpeg_supports_variable_crop(output) is supported

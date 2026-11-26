@@ -40,7 +40,7 @@ Para el detalle que no esta en `CLAUDE.md`: la skill `arquitectura` (flujo, esta
 
 Cuando se cumpla el "**terminaste cuando**" del documento:
 
-1. Pasa el agente `documentador` por el codigo nuevo o cambiado en la tarea: es el unico que escribe docstrings.
+1. Pasa el agente `documentador` por el codigo nuevo o cambiado en la tarea: es el unico que escribe docstrings. Si le das un dato medido que todavia no esta en `docs/`, anotalo antes en su documento, para que el docstring cite una fuente (26 nov 2026: "FFmpeg 7 y 8 no se probaron" solo estaba en el encargo).
 2. Corre `pnpm lint` y `pnpm test` en la raiz (hoy cubren el worker); el CI repite lo mismo en el PR y no deja fusionar si falla.
 3. Pasa el agente `explicador` por el codigo de la tarea (dale el rango `main...HEAD`, no tu explicacion: es independiente). Si devuelve una pagina, publicala como artifact. Muestra a Alex sus diferencias con `docs/` y sus preguntas de comprobacion antes de abrir el PR.
 4. Marca la tarea y sus subtareas como hechas en ClickUp (space **Content Engine**, carpeta **Fase 0 y Fase 1**, listas S1 a S6).

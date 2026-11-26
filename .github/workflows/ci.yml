@@ -45,26 +45,30 @@ jobs:
       - name: Import contracts
         run: uv run lint-imports
 
-      - name: FFmpeg (for the render integration test)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ffmpeg
-          ffmpeg -version | head -n 1
+      # The variable crop needs FFmpeg 9 (docs/03 §5.6): Ubuntu's 6.1.1 crashes or hangs when
+      # crop changes size mid-video. Pinned build with its sha256 written here, cached by it.
+      - name: Cache FFmpeg 9.0.2
+        id: ffmpeg-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/ffmpeg
+          key: ffmpeg-0e67c0626ba48a329b3e75fe577b13ade43543fcfe44255ae18d7c06e22fa31a
 
-      - name: Diagnose FFmpeg crop (temporary)
+      - name: Download FFmpeg 9.0.2
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
         working-directory: ${{ runner.temp }}
         run: |
-          ffmpeg -v error -y -f lavfi -i testsrc2=size=1920x1080:rate=30:duration=2 -pix_fmt yuv420p -c:v libx264 m.mp4
-          echo "0.0000 [enter] crop@camera x 601;" > move.cmd
-          echo "0.9833 [enter] crop@camera x 700;" >> move.cmd
-          echo "0.0000 [enter] crop@camera x 601;" > resize.cmd
-          echo "0.9833 [enter] crop@camera w 552, [enter] crop@camera h 982, [enter] crop@camera x 700, [enter] crop@camera y 49;" >> resize.cmd
-          run() { echo "=== $1"; timeout 60 ffmpeg -nostdin -v verbose -y -i m.mp4 -filter_complex "$2" -map "[v]" -c:v libx264 -preset veryfast out.mp4 > log.txt 2>&1; echo "exit=$?"; grep -iE "error|invalid|crop|scale|reinit|changing|frame=" log.txt | tail -12; }
-          run "move only, crop+scale" "[0:v]sendcmd=f=move.cmd,crop@camera=608:1080:601:0:exact=1,scale=1080:1920:flags=bicubic,setsar=1,format=yuv420p[v]"
-          run "resize, crop only" "[0:v]sendcmd=f=resize.cmd,crop@camera=608:1080:601:0:exact=1,format=yuv420p[v]"
-          run "resize, crop+scale" "[0:v]sendcmd=f=resize.cmd,crop@camera=608:1080:601:0:exact=1,scale=1080:1920:flags=bicubic,setsar=1,format=yuv420p[v]"
-          run "resize, crop+scale no exact" "[0:v]sendcmd=f=resize.cmd,crop@camera=608:1080:601:0,scale=1080:1920:flags=bicubic,setsar=1,format=yuv420p[v]"
+          curl -fsSL -o ffmpeg.tar.xz "https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/autobuild-2026-11-25-12-41/ffmpeg-n9.0.2-963-g4d831360c9-linux64-gpl-9.0.tar.xz"
+          echo "0e67c0626ba48a329b3e75fe577b13ade43543fcfe44255ae18d7c06e22fa31a  ffmpeg.tar.xz" | sha256sum -c -
+          mkdir -p ffmpeg
+          tar -xJf ffmpeg.tar.xz -C ffmpeg --strip-components=1
+          rm ffmpeg.tar.xz
+
+      - name: Put FFmpeg on the PATH
+        run: |
+          echo "${{ runner.temp }}/ffmpeg/bin" >> "$GITHUB_PATH"
+          "${{ runner.temp }}/ffmpeg/bin/ffmpeg" -version | head -n 1
 
       - name: Pytest (unit tests and doctests)
-        timeout-minutes: 4
-        run: uv run pytest -v
+        timeout-minutes: 6
+        run: uv run pytest

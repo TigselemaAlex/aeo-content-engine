@@ -295,7 +295,7 @@ Los archivos generados se guardan en el repo. CI los vuelve a generar y falla si
 | Dominio del worker | pytest | Planificador, transiciones, timeline, camino de cámara, ASS, plan de render, argumentos de FFmpeg, verificación de cifras | `worker/tests/unit` |
 | Pasos del worker | pytest + adaptadores falsos | Cada handler con respuestas grabadas de Claude y AssemblyAI | `worker/tests/unit` |
 | Cola y repositorios | pytest + Supabase local | Toma sin duplicados, leases, dependencias, tope de costo | `worker/tests/integration` |
-| Render | pytest + FFmpeg real | Video sintético de FFmpeg (`testsrc2`, sin la grabación de prueba) → `ffprobe` y cada fotograma contra su ventana (resolución, duración, loudness). Todo filtro nuevo de FFmpeg lleva su prueba aquí; el CI instala FFmpeg y ahí la prueba falla en vez de saltarse si falta (T2.3) | `worker/tests/integration` |
+| Render | pytest + FFmpeg real | Video sintético de FFmpeg (`testsrc2`, sin la grabación de prueba) → `ffprobe` y cada fotograma contra su ventana (resolución, duración, loudness). Todo filtro nuevo de FFmpeg lleva su prueba aquí; el CI usa FFmpeg 9.0.2 fijo (sha256) y ahí la prueba falla en vez de saltarse si falta (T2.3) | `worker/tests/integration` |
 | SQL, RLS y `rpc` | pgTAP | Cada rol ve solo lo suyo; transiciones válidas e inválidas | `supabase/tests` |
 | Dominio de la web | Vitest | Reglas puras (vista previa del spec combinado, diferencias entre versiones) | junto al módulo |
 | Componentes | Vitest + Testing Library | Solo los de lógica no trivial (tarjeta de pieza, editor de subtítulos) | junto al módulo |

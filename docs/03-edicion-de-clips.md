@@ -288,7 +288,7 @@ El recorte variable se hace con comandos de tiempo de FFmpeg (`sendcmd` sobre el
 - **Escala bicubic.** En el tramo de prueba (33,5 s, recortar + escalar + codificar): bilinear 6,0 s, bicubic 6,7 s, lanczos 8,1 s, spline 17,3 s; el detalle conservado (la salida reducida de nuevo y comparada con el recorte) fue 43,8, 45,4, 44,5 y 44,4 dB. Bicubic y lanczos no se distinguen en la cara; bilinear se ve apenas más blando.
 - **Codificación provisional:** CRF 18, preset `veryfast` (elegidos sin medir; la T2.7 mide el tiempo por clip). El audio se copia del intermedio hasta la T2.5 (loudness).
 
-Una prueba de integración (`worker/tests/integration/test_compose_render.py`) renderiza un video sintético de FFmpeg y falla si se quita `exact=1` o si los comandos usan `t_ms`; así una versión distinta de FFmpeg en la imagen del worker no rompe el recorte sin aviso.
+**Versión mínima: FFmpeg 9.** Con el FFmpeg 6.1.1 de Ubuntu 24.04, `crop` se cae (*segmentation fault*) o se cuelga cuando cambia de tamaño a mitad del video; mover la ventana sin cambiar su tamaño sí funciona (medido en el CI el 26 nov 2026). Las versiones 7 y 8 no se probaron: 9 es la más vieja que se vio funcionar, no un límite demostrado. El CI descarga una compilación fija de FFmpeg 9.0.2 con su sha256, y `compose_clip` falla con un mensaje claro si encuentra una versión menor en vez de colgarse. Una prueba de integración (`worker/tests/integration/test_compose_render.py`) renderiza un video sintético de FFmpeg y falla si se quita `exact=1` o si los comandos usan `t_ms`.
 
 ### 5.7 Verify
 

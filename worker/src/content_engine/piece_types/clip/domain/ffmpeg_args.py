@@ -6,7 +6,13 @@ Pure code: it only builds lists of strings; the media adapter runs FFmpeg. Cut t
 are milliseconds of the original video and FFmpeg receives them in seconds. Frame
 counts are frames of the mezzanine, which runs at a constant 30 fps, and crop windows
 are mezzanine pixels.
+
+It also reads the FFmpeg version from the text of `ffmpeg -version`, which the adapter
+runs, so the compose can refuse an FFmpeg older than 9, which breaks the variable crop
+(docs/03 §5.6).
 """
+
+import re
 
 from content_engine.piece_types.clip.domain.camera_path import CropKeyframe
 from content_engine.piece_types.clip.domain.sendcmd import CROP_FILTER
@@ -254,6 +260,80 @@ def build_extract_args(source: str, timeline: Timeline, output: str, fps: int = 
 
 OUTPUT_W, OUTPUT_H = 1080, 1920
 """Width and height of the vertical clip, in pixels: 9:16 (docs/03 §5.3 and §5.6)."""
+
+MIN_FFMPEG_MAJOR = 9
+"""Oldest FFmpeg major version the compose accepts, because of the variable crop (docs/03 §5.6).
+
+The crop window changes size during the clip, with the zooms and cut bridges. Measured in
+the CI on 26 nov 2026: with Ubuntu 24.04's FFmpeg 6.1.1, `crop` crashes (segmentation
+fault) or hangs when it changes size mid-video; moving the window without resizing it
+works. With FFmpeg 9.0.2 the test stretch comes out with 0 of 1004 frames on the wrong
+window (decision "Recorte variable y verificación del clip", docs/00). Versions 7 and 8
+were not tried, so 9 is the oldest version seen working, not a proven limit (docs/03
+§5.6). Chosen by Alex on 26 nov 2026.
+"""
+
+
+def ffmpeg_major_version(version_output: str) -> int | None:
+    """Return the major version number written in the output of `ffmpeg -version`.
+
+    Looks for `ffmpeg version`, an optional `n` and the digits before the first dot.
+    FFmpeg prints that on the first line. Release builds of FFmpeg-Builds (BtbN), such
+    as the 9.0.2 the CI downloads (`.github/workflows/ci.yml`), write the version with
+    the `n` in front. Builds of FFmpeg's development branch (git master) write `N-`
+    instead of a version number and get `None`, as does text that does not come from
+    FFmpeg.
+
+    Args:
+        version_output: What `ffmpeg -version` prints, all of it or just its first line.
+
+    Returns:
+        The major version, such as 9 for 9.0.2, or `None` if the text has no
+        `ffmpeg version <number>.`.
+
+    Example:
+        The gyan.dev Windows build on the developer's machine, the FFmpeg-Builds build
+        of the CI, Ubuntu 24.04's package and a development-branch build:
+
+        >>> ffmpeg_major_version("ffmpeg version 9.0.2-full_build-www.gyan.dev")
+        9
+        >>> ffmpeg_major_version("ffmpeg version n9.0.2-963-g4d831360c9-20251125")
+        9
+        >>> ffmpeg_major_version("ffmpeg version 6.1.1-3ubuntu5")
+        6
+        >>> print(ffmpeg_major_version("ffmpeg version N-121234-gabcdef0123"))
+        None
+    """
+    match = re.search(r"ffmpeg version n?(\d+)\.", version_output)
+    return int(match.group(1)) if match else None
+
+
+def ffmpeg_supports_variable_crop(version_output: str) -> bool:
+    """Return whether this FFmpeg can crop with a window that changes size.
+
+    True when the major version from `ffmpeg_major_version` is `MIN_FFMPEG_MAJOR` (9)
+    or later. An unknown version, such as a development-branch build, is let through
+    because its text cannot tell how old it is; if it breaks the crop, the render
+    integration test (`worker/tests/integration/test_compose_render.py`) fails
+    (docs/04 §2). `compose_clip` asks this before running the compose.
+
+    Args:
+        version_output: What `ffmpeg -version` prints.
+
+    Returns:
+        `True` for FFmpeg 9 or later or an unknown version, `False` for 8 or older.
+
+    Example:
+        >>> ffmpeg_supports_variable_crop("ffmpeg version 6.1.1-3ubuntu5")
+        False
+        >>> ffmpeg_supports_variable_crop("ffmpeg version 9.0.2-full_build-www.gyan.dev")
+        True
+        >>> ffmpeg_supports_variable_crop("ffmpeg version N-121234-gabcdef0123")
+        True
+    """
+    major = ffmpeg_major_version(version_output)
+    return major is None or major >= MIN_FFMPEG_MAJOR
+
 
 COMPOSE_CRF = 18
 """H.264 quality of the vertical clip (`-crf`): the lower, the better and the larger.

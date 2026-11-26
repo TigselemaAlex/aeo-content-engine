@@ -50,7 +50,7 @@ flowchart LR
 | `worker cpu` | Pasos de la cola `cpu`: FFmpeg, MediaPipe, Playwright, ZIP | Un proceso por slot; slots = núcleos ÷ 2 | Cada slot hace un paso a la vez; FFmpeg ya usa varios hilos |
 | `worker maintenance` | Nada de la cola | Uno solo | Recupera leases vencidos, aplica la retención, detecta trabajos trabados y, en la Fase 3, despacha eventos |
 
-En local, `docker-compose.yml` levanta los tres servicios con la misma imagen. La imagen fija la versión de FFmpeg: el recorte variable se probó con FFmpeg 9.0.2 y `worker/tests/integration/test_compose_render.py` falla si otra versión lo rompe (`03` §5.6). En el MVP todo corre en la misma máquina, así el original descargado se comparte entre pasos por disco (§10).
+En local, `docker-compose.yml` levanta los tres servicios con la misma imagen. La imagen fija la versión de FFmpeg, **9 o superior**: el recorte variable se probó con FFmpeg 9.0.2 y con el 6.1.1 de Ubuntu 24.04 se cae; `worker/tests/integration/test_compose_render.py` falla si otra versión lo rompe (`03` §5.6). En el MVP todo corre en la misma máquina, así el original descargado se comparte entre pasos por disco (§10).
 
 ---
 
