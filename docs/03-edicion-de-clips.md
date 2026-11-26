@@ -302,7 +302,7 @@ Desde la T2.3 el comando de desarrollo `verify-clip` mide el clip contra su cami
 | Parecido con su ventana | ≥ 35 dB en el peor fotograma | 43,9 dB |
 | Puentes en su corte | todos en su fotograma | 9/9 |
 | Cara dentro | ≤ 5 % de la caja por lado (o la mitad del sobrante si no cabe y se centra), + 1 px de redondeo; lo que sale del cuadro no cuenta | 0 (peor: 5,4 %, cara de 597 px en ventana de 534) |
-| Saltos fuera de los cortes | ≤ 20 px por fotograma (600 px/s) | 0 (máx. 17 px) |
+| Saltos fuera de los cortes | ≤ 20 px por fotograma (600 px/s). También falla el salto de un empuje legítimo (la cara se movió más rápido que la cámara, §5.3): el clip tiene un movimiento brusco y alguien debe verlo (decidido el 26 nov 2026) | 0 (máx. 17 px) |
 | Vaivenes | 0 idas y vueltas a → b → a | 0 |
 
 La primera fila son tres comprobaciones (tamaño, fps y fotogramas): 10 en total. Para el parecido, cada fotograma de la salida se reduce al tamaño de su ventana y se compara (PSNR en gris) con el intermedio recortado en su keyframe y en los de sus vecinos. Además:
