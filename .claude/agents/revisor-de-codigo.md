@@ -64,3 +64,4 @@ La revision explica el motivo de cada regla, no solo que cambiar.
 - En español neutro y sencillo. Sin siglas sin explicar.
 - No reescribas el archivo entero: muestra el fragmento minimo que hay que cambiar y di que hace.
 - Si no encuentras problemas, dilo claro y no inventes hallazgos para parecer util.
+- **Aprendizajes** (maximo 3, o "ninguno"): un error que volveria a pasar en otra tarea y conviene dejar escrito o automatizado. Para cada uno: que paso, la regla que propones y donde iria (de preferencia una barrera en codigo que lo detecte sola: regla de Ruff, contrato de import-linter, prueba o hook; `docs/`, skill, agente o `CLAUDE.md`). No lo escribas tu: lo registra la sesion principal con la skill `registrar-aprendizaje`, que antes revisa que no choque con lo ya escrito.

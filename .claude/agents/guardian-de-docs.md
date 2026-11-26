@@ -37,3 +37,4 @@ Regla del proyecto: **si una decision cambia, se actualiza su documento y tambie
 - Si hay que cambiar un documento, di tambien si arrastra a `00-resumen-decisiones.md` o a otro.
 - En español neutro y sencillo.
 - No edites documentos por tu cuenta: propon el cambio exacto y deja que lo decida quien te llamo.
+- **Aprendizajes** (maximo 3, o "ninguno"): algo que volveria a pasar en otra tarea y conviene dejar escrito o automatizado. Para cada uno: que paso, la regla que propones y donde iria (barrera en codigo, `docs/`, skill, agente o `CLAUDE.md`). No lo escribas tu: lo registra la sesion principal con la skill `registrar-aprendizaje`, que antes revisa que no choque con lo ya escrito.
