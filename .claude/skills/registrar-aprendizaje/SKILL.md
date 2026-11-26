@@ -7,7 +7,7 @@ description: Convierte lo que se aprendio trabajando (un error que se repite, un
 
 Un aprendizaje que solo queda en la conversacion se pierde. Uno que se escribe sin revisar termina en reglas repetidas o contradictorias. Esta skill es el camino del medio: **cada aprendizaje termina en un solo lugar, sin chocar con lo que ya existe**.
 
-Solo la sesion principal la ejecuta. Los agentes (`documentador`, `revisor-de-codigo`, `guardian-de-docs`) **proponen** aprendizajes en su informe y no los escriben: corren aparte, no pueden preguntarle a Alex y, si trabajan en paralelo, se pisarian al escribir el mismo archivo.
+Solo la sesion principal la ejecuta. Los agentes (`documentador`, `revisor-de-codigo`, `guardian-de-docs`, `explicador`) **proponen** aprendizajes en su informe y no los escriben: corren aparte, no pueden preguntarle a Alex y, si trabajan en paralelo, se pisarian al escribir el mismo archivo.
 
 ## 1. Decide si vale la pena guardarlo
 
