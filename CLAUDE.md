@@ -30,7 +30,7 @@ Todo se carga desde aquí: **no** crees `CLAUDE.md` dentro de subcarpetas.
 
 Los agentes no escriben reglas: las proponen en la sección "Aprendizajes" de su informe, y la sesión principal las registra con la skill `registrar-aprendizaje`.
 
-`.claude/hooks/check-reglas.mjs` revisa automáticamente, al escribir un archivo: dominio puro, `steps` sin `adapters`, `server-only`, Lucide, `service_role`, límites de `app/` y versión de los prompts. También pide confirmación antes de editar una migración existente.
+`.claude/hooks/check-reglas.mjs` revisa automáticamente, al escribir un archivo: dominio puro, `steps` sin `adapters`, `server-only`, Lucide, `service_role`, límites de `app/` y versión de los prompts. También pide confirmación antes de editar una migración existente. `.claude/hooks/check-on-stop.mjs` no deja terminar a Claude si cambió `worker/` y las comprobaciones del CI están en rojo (tras 3 intentos lo deja y avisa a Alex).
 
 ## Documentos de diseño
 

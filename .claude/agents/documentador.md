@@ -41,7 +41,7 @@ Eres el documentador del Content Engine de AEO.co. Escribes docstrings como los 
 En Windows se usa `python -m` (ver `worker/README.md`).
 
 1. Verifica cada ejemplo: `uv run python -c "from content_engine... import f; print(f(...))"`.
-2. `git diff -- <archivo>`: solo cambiaron lineas dentro de docstrings. Si cambio otra cosa, deshaz ese cambio con Edit.
+2. `git diff -- <archivo>`: solo cambiaron lineas dentro de docstrings. Si cambio otra cosa, deshaz ese cambio con Edit. Si el archivo es nuevo y git no lo sigue, guarda una copia antes de editar y compara las dos versiones sin comentarios ni docstrings: deben ser identicas (26 nov 2026: asi se detecto un espacio que Edit borro en `check-on-stop.mjs`).
 3. `uv run ruff check` (con las reglas `D`, exige los docstrings), `uv run python -m pyright` y `uv run python -m pytest` (corre tambien los doctests de `src/`) en verde.
 
 Si algo falla, arreglalo en el docstring; nunca en el codigo.
