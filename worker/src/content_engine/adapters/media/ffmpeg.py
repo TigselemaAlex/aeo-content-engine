@@ -1,14 +1,24 @@
-"""Run FFmpeg to extract the audio of a video and to cut the clip mezzanine.
+"""Run FFmpeg to extract the audio of a video, cut the clip mezzanine and compose the clip.
 
-Only running FFmpeg lives here: the arguments of the clip cut are built by the pure clip
-domain (`ffmpeg_args.py`, docs/06 §5.2). Times are milliseconds of the source video. The
-`ffmpeg` program must be on the PATH.
+Only running FFmpeg lives here: the arguments of the clip cut and of the compose, and
+the crop commands, are built by the pure clip domain (`ffmpeg_args.py` and `sendcmd.py`,
+docs/06 §5.2). Cut times are milliseconds of the source video; crop windows are pixels
+and frames of the mezzanine. The `ffmpeg` program must be on the PATH.
 """
 
+import functools
 import subprocess
+import tempfile
 from pathlib import Path
 
-from content_engine.piece_types.clip.domain.ffmpeg_args import build_extract_args
+from content_engine.piece_types.clip.domain.camera_path import CropKeyframe
+from content_engine.piece_types.clip.domain.ffmpeg_args import (
+    MIN_FFMPEG_MAJOR,
+    build_compose_args,
+    build_extract_args,
+    ffmpeg_supports_variable_crop,
+)
+from content_engine.piece_types.clip.domain.sendcmd import crop_commands
 from content_engine.piece_types.clip.domain.timeline import Timeline
 
 
@@ -105,3 +115,94 @@ def extract_clip(video_path: Path, timeline: Timeline, output_path: Path, fps: i
         subprocess.run(args, check=True, capture_output=True, timeout=600)
     except subprocess.CalledProcessError as error:
         raise RuntimeError(f"FFmpeg failed: {error.stderr.decode()}") from error
+
+
+@functools.cache
+def _ffmpeg_version() -> str:
+    """Return what `ffmpeg -version` prints, run once per process and cached.
+
+    The 30 s limit is only a safety cap, picked by the developer without measuring: the
+    command answers at once.
+
+    Raises:
+        RuntimeError: If `ffmpeg -version` exits with an error. The message carries its
+            error output.
+        subprocess.TimeoutExpired: If it takes more than 30 s.
+    """
+    try:
+        result = subprocess.run(["ffmpeg", "-version"], check=True, capture_output=True, timeout=30)
+    except subprocess.CalledProcessError as error:
+        raise RuntimeError(f"ffmpeg -version failed: {error.stderr.decode()}") from error
+    return result.stdout.decode(errors="replace")
+
+
+def compose_clip(mezzanine_path: Path, keyframes: list[CropKeyframe], output_path: Path) -> None:
+    """Crop the mezzanine along the camera path and scale it to the 1080x1920 vertical clip.
+
+    Before the compose it checks the FFmpeg on the PATH with
+    `ffmpeg_supports_variable_crop`: an FFmpeg older than `MIN_FFMPEG_MAJOR` (9) crashes
+    or hangs when the crop window changes size (docs/03 §5.6), so the compose stops with
+    a clear error instead of hanging until its time limit. `ffmpeg -version` runs only
+    once per process.
+
+    Then it writes the `crop_commands` script to `crop.cmd` in a temporary folder and
+    runs FFmpeg with `build_compose_args` from that folder, so the filter receives the
+    bare file name: a Windows path such as `C:/...` inside a filter argument breaks on
+    the `:`.
+    The clip is H.264 High in yuv420p at 30 fps with `+faststart`, and the mezzanine's
+    audio is copied as it is (docs/03 §5.6). There is no frame rate argument: the
+    command times of `crop_commands` follow the 30 fps of the mezzanine (docs/03 §5.2)
+    and the clip's own rate is 30 fps by design (docs/03 §5.6), so both use their
+    default of 30. The temporary folder is deleted at the end. An existing file at
+    `output_path` is overwritten. FFmpeg's output is captured, not printed, and FFmpeg
+    is stopped after 900 s, the same 15 min the step catalog gives `clip.compose`
+    (docs/04 §4.1).
+
+    Args:
+        mezzanine_path: Mezzanine from `extract_clip`.
+        keyframes: One crop window per mezzanine frame, in frame order, from
+            `camera_path`.
+        output_path: Where to write the clip, for example `clip.mp4`. Its folder must
+            already exist.
+
+    Raises:
+        ValueError: If `keyframes` is empty, before FFmpeg runs.
+        RuntimeError: If the FFmpeg on the PATH is older than 9, before the compose
+            runs; the message carries the first line of `ffmpeg -version`. Also if
+            `ffmpeg -version` or the compose exits with an error; the message then
+            carries FFmpeg's error output.
+        subprocess.TimeoutExpired: If FFmpeg runs for more than 900 s, or
+            `ffmpeg -version` takes more than 30 s (a safety cap, not measured).
+
+    Example:
+        On the test stretch (words 29 to 108) the 1004 keyframes give a 579-line
+        `crop.cmd`, and the clip comes out 1080x1920 at 30 fps with 1004 frames, in
+        about 7 s. With Ubuntu 24.04's FFmpeg 6.1.1 it stops at once with
+        `RuntimeError: compose needs FFmpeg 9 or later, found: ffmpeg version
+        6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers. Older versions
+        crash or hang when the crop changes size (docs/03 section 5.6).`
+    """
+    if not keyframes:
+        raise ValueError("the camera path has no keyframes")
+    version = _ffmpeg_version()
+    if not ffmpeg_supports_variable_crop(version):
+        raise RuntimeError(
+            f"compose needs FFmpeg {MIN_FFMPEG_MAJOR} or later, found: {version.splitlines()[0]}. "
+            "Older versions crash or hang when the crop changes size (docs/03 section 5.6)."
+        )
+    with tempfile.TemporaryDirectory() as work_dir:
+        commands_file = Path(work_dir) / "crop.cmd"
+        commands_file.write_text(crop_commands(keyframes), encoding="utf8")
+        args = [
+            "ffmpeg",
+            *build_compose_args(
+                mezzanine=str(mezzanine_path.resolve()),
+                first=keyframes[0],
+                commands_file=commands_file.name,
+                output=str(output_path.resolve()),
+            ),
+        ]
+        try:
+            subprocess.run(args, check=True, capture_output=True, timeout=900, cwd=work_dir)
+        except subprocess.CalledProcessError as error:
+            raise RuntimeError(f"FFmpeg failed: {error.stderr.decode()}") from error

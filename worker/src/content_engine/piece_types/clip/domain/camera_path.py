@@ -83,6 +83,18 @@ The render shows stretches longer than 2 s with `fit_blur` (docs/03 §5.3).
 """
 
 
+PUSH_EPSILON_PX = 1e-6
+"""Smallest move, in mezzanine pixels, that counts as `place_window` pushing the window.
+
+`place_window` pushes the window for two reasons: to keep the face core visible, or
+to keep the window inside the frame (start held at 0 or at frame_size - size). Both
+count. Not a tuning value: a window that was not pushed comes back as
+center - size / 2 + size / 2, which can differ from the center by float noise far
+below 1e-6 px, and any real push is far larger. `_Spring.settle` uses it to tell the
+two apart.
+"""
+
+
 class CropKeyframe(BaseModel):
     """The crop window on one frame of the mezzanine. (x, y) is the top-left corner.
 
@@ -250,6 +262,93 @@ def place_window(
     else:
         start = face_start + face_size / 2 - size / 2
     return min(max(start, 0), frame_size - size)
+
+
+def cut_at_frames(cut_at_ms: list[int], duration_ms: int, fps: int = 30) -> list[int]:
+    """Return the mezzanine frames where the image cuts to another shot.
+
+    Each cut goes to frame round(ms x 30 / 1000), the same rounding the mezzanine uses
+    to cut its stretches (docs/03 §5.2 and §5.3). Cuts at 0 ms or at `duration_ms` and
+    later are ignored, and two cuts on the same frame count once. `camera_path` and
+    `verify-clip` both use it, so they put the cuts on the same frames.
+
+    Args:
+        cut_at_ms: Clip times where the image jumps to the next stretch
+            (`Timeline.video_cut_points_ms`), in clip milliseconds.
+        duration_ms: Length of the clip, in milliseconds (`Timeline.duration_ms`).
+        fps: Frame rate of the mezzanine. 30 by default (docs/03 §5.2).
+
+    Returns:
+        The cut frames, sorted, without repeats.
+
+    Example:
+        Test stretch (words 29 to 108, 33476 ms): the first cuts at 3206 and 5556 ms
+        fall on 3206 x 30 / 1000 = 96.18 -> 96 and 5556 x 30 / 1000 = 166.68 -> 167.
+
+        >>> cuts_ms = [3206, 5556, 6687, 12658, 15337, 17741, 24046, 26783, 30128]
+        >>> cut_at_frames(cuts_ms, duration_ms=33476)
+        [96, 167, 201, 380, 460, 532, 721, 803, 904]
+        >>> cut_at_frames([0, 3206, 33476], duration_ms=33476)
+        [96]
+    """
+    return sorted({round(ms * fps / 1000) for ms in cut_at_ms if 0 < ms < duration_ms})
+
+
+def cut_frame_starts_ms(cut_frames: list[int], fps: int = 30) -> list[int]:
+    """Return the time where each cut frame starts, in clip milliseconds.
+
+    Each cut frame from `cut_at_frames` becomes round(frame x 1000 / 30) ms, the same
+    `t_ms` its keyframe gets, so `face_at` already uses the box of the new shot on the
+    cut frame. This time can differ by a few milliseconds from the cut in the timeline:
+    the cut at 3206 ms falls on frame 96, which starts at 3200 ms. `camera_path` and
+    `check_path` both use it, so the path and its check see the cuts at the same times.
+
+    Args:
+        cut_frames: Mezzanine frames where the image cuts to another shot, from
+            `cut_at_frames`.
+        fps: Frame rate of the mezzanine. 30 by default (docs/03 §5.2).
+
+    Returns:
+        One start time per cut frame, in the same order, in clip milliseconds.
+
+    Example:
+        Test stretch (words 29 to 108): frame 96 starts at 96 x 1000 / 30 = 3200 ms and
+        frame 167 at 167 x 1000 / 30 = 5566.67 -> 5567 ms.
+
+        >>> cut_frame_starts_ms([96, 167, 201, 380, 460, 532, 721, 803, 904])
+        [3200, 5567, 6700, 12667, 15333, 17733, 24033, 26767, 30133]
+    """
+    return [round(frame * 1000 / fps) for frame in cut_frames]
+
+
+def _whole_start(start: float, size: int, frame_size: int) -> int:
+    """Round a window start to whole pixels by rounding its center, kept inside the frame.
+
+    The center is rounded first, then the start is center - size // 2, exact because
+    sizes are even. Rounding the start on its own, round(start), made the center wobble:
+    with the center on a half pixel and the size growing 2 px a frame during a zoom,
+    Python's round-half-to-even went one way and then the other, and the center went
+    490 -> 491 -> 490. Measured on the test stretch (words 29 to 108): 7 vertical
+    wobbles, 6 of them at the end of the last zoom (frames 934 to 947); 0 with this.
+
+    Args:
+        start: Left or top edge of the window from `place_window`, in mezzanine pixels.
+        size: Window size on this axis, in pixels, even.
+        frame_size: Width or height of the mezzanine frame, in pixels.
+
+    Returns:
+        The start in whole pixels, between 0 and `frame_size - size`.
+
+    Example:
+        Center at 490.5. Height 952: round(490.5) = 490, y = 490 - 476 = 14. Height 954:
+        y = 490 - 477 = 13, and the center stays at 490. round(start) gave
+        round(14.5) = 14 and round(13.5) = 14, so the center went from 490 to 491.
+
+        >>> _whole_start(14.5, 952, 1080), _whole_start(13.5, 954, 1080)
+        (14, 13)
+    """
+    center = round(start + size / 2)
+    return min(max(center - size // 2, 0), frame_size - size)
 
 
 def face_at(faces: list[FaceBox], t_ms: int, cut_at_ms: list[int] | None = None) -> FaceBox | None:
@@ -451,6 +550,46 @@ class _Spring:
         self.position = position
         self.velocity = 0.0
 
+    def settle(self, position: float, target: float) -> float:
+        """Stop the spring where `place_window` pushed it, and aim there from now on.
+
+        If `position` (the window center after `place_window`) differs from the spring's
+        by more than `PUSH_EPSILON_PX`, the window was pushed, either to keep the face
+        core visible or to keep the window inside the frame (start held at 0 or at
+        frame_size - size): the spring jumps there with no speed (`snap`) and that
+        position becomes the target. Otherwise nothing changes. At the frame edge this
+        also stops the spring from pulling on toward a center the window cannot reach.
+
+        Without it the target went stale: the dead zone compares the face with the
+        camera, and the push keeps the camera within the 552 x 0.10 / 2 = 27.6 px half
+        dead zone of a bridge window, so the target was never updated. On the test
+        stretch, at frame 285 the target was 1158 with the face at 1264; the spring
+        pulled left at about -360 px/s and the push moved it back 8 to 16 px every
+        frame, so the window copied the noise of the face box edge: 6 horizontal
+        wobbles (frames 226, 285, 300, 494, 566 and 885), and 0 with this. Smoothing the
+        face boxes instead was tried and was worse: 11 wobbles and 160 frames with the
+        face cut too much.
+
+        Args:
+            position: Window center after `place_window`, in mezzanine pixels.
+            target: Where the camera is aiming now, in mezzanine pixels.
+
+        Returns:
+            The new target: `position` after a push, otherwise `target`.
+
+        >>> spring = _Spring(position=1240.0, velocity=-360.0)
+        >>> spring.settle(position=1250.0, target=1158.0)
+        1250.0
+        >>> spring.position, spring.velocity
+        (1250.0, 0.0)
+        >>> spring.settle(position=1250.0, target=1300.0)
+        1300.0
+        """
+        if abs(position - self.position) > PUSH_EPSILON_PX:
+            self.snap(position)
+            return position
+        return target
+
 
 def _follow(target: float, camera: float, face: float, window_size: int) -> float:
     """Dead zone: only aim at the face once it leaves the central part of the window.
@@ -502,7 +641,9 @@ def camera_path(
     round(n x 1000 / 30) ms. On each frame:
 
     1. The face comes from `face_at`. Each cut is moved to the start of its
-       frame, round(ms x 30 / 1000), so the cut frame already sees the new shot.
+       frame: frame round(ms x 30 / 1000) (`cut_at_frames`), which starts at
+       round(frame x 1000 / 30) ms (`cut_frame_starts_ms`), so the cut frame
+       already sees the new shot.
     2. The scale is base + (zoom_max_scale - base) x `zoom_amount`, where the
        base switches between 1.0 and `BRIDGE_SCALE` (1.10) on every cut; the
        window size comes from `crop_window_size` (docs/03 §5.3).
@@ -512,7 +653,13 @@ def camera_path(
        at up to `MAX_SPEED_PX_S`. On a cut the camera jumps to the face.
     4. `place_window` keeps the face core visible and the window inside the
        frame. This wins over the top speed: if the face moves faster than the
-       spring, the window is pushed along with it.
+       spring, the window is pushed along with it. After a push, by the face
+       or by the frame edge, the spring stops where it was pushed and aims
+       there (`_Spring.settle`), so it does not keep pulling toward an old
+       target.
+    5. The window start is rounded to whole pixels by rounding its center
+       (`_whole_start`), so the center does not wobble while a zoom changes
+       the size 2 px at a time.
 
     With no face boxes at all, the window stays centered in the frame.
 
@@ -558,9 +705,9 @@ def camera_path(
         CropKeyframe(t_ms=1000, x=684, y=49, w=552, h=982)
     """
     zooms = zoom_at_ms or []
-    cut_frames = {round(ms * fps / 1000) for ms in cut_at_ms or [] if 0 < ms < duration_ms}
+    cut_frames = set(cut_at_frames(cut_at_ms or [], duration_ms, fps))
     # Cuts moved to the start of their frame, so the cut frame already sees the new shot.
-    cut_frame_ms = sorted(round(frame * 1000 / fps) for frame in cut_frames)
+    cut_frame_ms = cut_frame_starts_ms(sorted(cut_frames), fps)
     ease_ms = round((zoom_ease_s[0] + zoom_ease_s[1]) / 2 * 1000)
     dt = 1 / fps
 
@@ -600,9 +747,17 @@ def camera_path(
 
             x = place_window(spring_x.position, w, face.x, face.w, frame_w)
             y = place_window(spring_y.position, h, face.y, face.h, frame_h)
-            spring_x.position = x + w / 2
-            spring_y.position = y + h / 2
+            target_x = spring_x.settle(x + w / 2, target_x)
+            target_y = spring_y.settle(y + h / 2, target_y)
 
-        keyframes.append(CropKeyframe(t_ms=t_ms, x=round(x), y=round(y), w=w, h=h))
+        keyframes.append(
+            CropKeyframe(
+                t_ms=t_ms,
+                x=_whole_start(x, w, frame_w),
+                y=_whole_start(y, h, frame_h),
+                w=w,
+                h=h,
+            )
+        )
 
     return CameraPath(keyframes=keyframes, no_face=find_no_face_ranges(faces, duration_ms))

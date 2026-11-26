@@ -160,11 +160,11 @@ worker/
 ├── scripts/                          # herramientas de desarrollo fuera del paquete (p. ej. plot_camera_path.py)
 ├── tests/
 │   ├── unit/
-│   ├── integration/                  # contra Supabase y MinIO locales
+│   ├── integration/                  # contra Supabase y MinIO locales; render con FFmpeg real (test_compose_render.py)
 │   ├── fixtures/                     # transcripciones, video corto de prueba
 │   └── e2e/
 └── src/content_engine/
-    ├── main.py                       # CLI: worker io | cpu | maintenance | prototype
+    ├── main.py                       # CLI: comandos de desarrollo por paso (cut, camera-path, compose, verify-clip…), prototype (T2.7) y worker io | cpu | maintenance (Sprint 4)
     ├── bootstrap.py                  # raíz de composición: arma adaptadores y contexto
     ├── config.py                     # pydantic-settings (variables de entorno)
     ├── shared/                       # núcleo compartido: ids, errores, tiempo, Money, transcript (Word, Transcript)
@@ -185,13 +185,13 @@ worker/
     │   ├── post/  blog/  newsletter/  quote/  carousel/
     │   └── clip/
     │       ├── steps/                # decide, extract, analyze, compose, verify
-    │       └── domain/               # timeline, faces, camera_path, captions_ass, render_plan, ffmpeg_args
+    │       └── domain/               # timeline, faces, camera_path, sendcmd, path_checks, verify, captions_ass, render_plan, ffmpeg_args
     └── adapters/
         ├── db/                       # psycopg: repositorios y la cola
         ├── llm/anthropic.py
         ├── transcription/assemblyai.py
         ├── storage/s3.py
-        └── media/                    # ffmpeg.py, mediapipe_faces.py (pyright basic), face_preview.py, playwright_render.py
+        └── media/                    # ffmpeg.py, clip_probe.py, mediapipe_faces.py (pyright basic), face_preview.py, playwright_render.py
 ```
 
 ### 5.2 Reglas de dependencia
@@ -295,7 +295,7 @@ Los archivos generados se guardan en el repo. CI los vuelve a generar y falla si
 | Dominio del worker | pytest | Planificador, transiciones, timeline, camino de cámara, ASS, plan de render, argumentos de FFmpeg, verificación de cifras | `worker/tests/unit` |
 | Pasos del worker | pytest + adaptadores falsos | Cada handler con respuestas grabadas de Claude y AssemblyAI | `worker/tests/unit` |
 | Cola y repositorios | pytest + Supabase local | Toma sin duplicados, leases, dependencias, tope de costo | `worker/tests/integration` |
-| Render | pytest + FFmpeg real | Video de prueba de 20 s → `ffprobe` (resolución, duración, loudness) | `worker/tests/integration` |
+| Render | pytest + FFmpeg real | Video sintético de FFmpeg (`testsrc2`, sin la grabación de prueba) → `ffprobe` y cada fotograma contra su ventana (resolución, duración, loudness). Todo filtro nuevo de FFmpeg lleva su prueba aquí; el CI usa FFmpeg 9.0.2 fijo (sha256) y ahí la prueba falla en vez de saltarse si falta (T2.3) | `worker/tests/integration` |
 | SQL, RLS y `rpc` | pgTAP | Cada rol ve solo lo suyo; transiciones válidas e inválidas | `supabase/tests` |
 | Dominio de la web | Vitest | Reglas puras (vista previa del spec combinado, diferencias entre versiones) | junto al módulo |
 | Componentes | Vitest + Testing Library | Solo los de lógica no trivial (tarjeta de pieza, editor de subtítulos) | junto al módulo |

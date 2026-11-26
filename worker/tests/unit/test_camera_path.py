@@ -137,6 +137,41 @@ def test_zoom_shrinks_the_window_to_max_scale() -> None:
     assert (path.keyframes[0].w, path.keyframes[-1].w) == (608, 608)
 
 
+def test_after_a_push_the_camera_stops_where_it_was_pushed() -> None:
+    # A 640 px face has a 576 px core: 32 px of slack in a 608 px window, so the face
+    # pushes the window. It leans to 800, comes back to 960 at 1.3 s and then drifts
+    # 15 px left, inside the 30 px dead zone: the window must not move any more.
+    def center(t: int) -> float:
+        if 1000 <= t < 1300:
+            return 800
+        return 960 - min(15, max(0, (t - 1500) / 100))
+
+    faces = [
+        FaceBox(t_ms=t, x=round(center(t) - 320), y=220, w=640, h=640, score=0.9)
+        for t in range(0, 4000, 100)
+    ]
+
+    path = camera_path(faces, FRAME_W, FRAME_H, duration_ms=4000)
+
+    assert {k.x for k in path.keyframes[45:]} == {640}
+
+
+def test_zoom_does_not_wobble_the_window_center() -> None:
+    # A 101 px face puts its center on a half pixel (x 960.5, y 540.5). While the zoom
+    # changes the size 2 px at a time, the window center must never go a -> b -> a.
+    faces = [FaceBox(t_ms=t, x=910, y=490, w=101, h=101, score=0.9) for t in range(0, 5000, 100)]
+    path = camera_path(faces, FRAME_W, FRAME_H, duration_ms=5000, zoom_at_ms=[500])
+
+    for axis in ("x", "y"):
+        size = "w" if axis == "x" else "h"
+        # Doubled center, to keep it a whole number: 2 x start + size.
+        centers = [2 * getattr(k, axis) + getattr(k, size) for k in path.keyframes]
+        wobbles = [
+            i for i in range(1, len(centers) - 1) if centers[i - 1] == centers[i + 1] != centers[i]
+        ]
+        assert wobbles == [], f"{axis} wobbles at frames {wobbles}"
+
+
 # Step 6 · cut bridges
 
 
