@@ -262,7 +262,7 @@ Reglas para escribir un paso:
 | Error | Ejemplos | Qué pasa |
 | --- | --- | --- |
 | `RetryableError` | Timeout, error de red, 5xx, 429, `ffmpeg` cortado por falta de memoria | Vuelve a `pending` con `run_after = ahora + espera`. Si es 429 y el proveedor indica cuánto esperar, se respeta |
-| `PermanentError` | Archivo corrupto, video sin audio, más de 2 h, JSON inválido después de la reparación, fuente faltante | `failed` sin reintentar |
+| `PermanentError` | Archivo corrupto, video sin audio, más de 2 h, JSON inválido después de la reparación, fuente faltante, intermedio con un número de fotogramas distinto al del timeline (`03` §5.2) | `failed` sin reintentar |
 | `NeedsConfirmation` | Calidad dudosa en `probe` (RF-05) | El paso termina bien; el trabajo pasa a `needs_confirmation` y los dependientes esperan |
 | `BudgetExceeded` | Se superaría el tope del trabajo | El paso vuelve a `pending` sin gastar un intento; el trabajo pasa a `paused_budget` |
 | Cualquier otro | Error de programación | Se trata como recuperable una vez; si se repite, `failed`, y queda en logs y Sentry |
