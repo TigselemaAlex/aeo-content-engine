@@ -51,5 +51,12 @@ jobs:
           sudo apt-get install -y --no-install-recommends ffmpeg
           ffmpeg -version | head -n 1
 
+      - name: Diagnose FFmpeg stdin (temporary)
+        run: |
+          timeout 60 ffmpeg -v error -f lavfi -i testsrc2=size=320x240:rate=30:duration=1 -f null - ; echo "plain exit=$?"
+          timeout 60 ffmpeg -nostdin -v error -f lavfi -i testsrc2=size=320x240:rate=30:duration=1 -f null - ; echo "nostdin exit=$?"
+          python3 -c "import subprocess; r = subprocess.run(['ffmpeg','-v','error','-f','lavfi','-i','testsrc2=size=320x240:rate=30:duration=1','-f','null','-'], capture_output=True, timeout=60); print('python plain exit', r.returncode)" || echo "python plain FAILED"
+
       - name: Pytest (unit tests and doctests)
-        run: uv run pytest
+        timeout-minutes: 6
+        run: uv run pytest -v

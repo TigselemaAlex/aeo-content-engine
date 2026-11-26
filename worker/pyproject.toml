@@ -91,6 +91,8 @@ unmatched_ignore_imports_alerting = "none"
 [tool.pytest.ini_options]
 testpaths = ["tests", "src"]
 addopts = "--doctest-modules"
+# A test stuck for 2 min prints every thread's stack, so a hang shows where it is.
+faulthandler_timeout = 120
 
 [tool.pyright]
 include = ["src", "tests", "scripts"]
