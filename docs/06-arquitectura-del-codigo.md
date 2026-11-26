@@ -160,11 +160,11 @@ worker/
 ├── scripts/                          # herramientas de desarrollo fuera del paquete (p. ej. plot_camera_path.py)
 ├── tests/
 │   ├── unit/
-│   ├── integration/                  # contra Supabase y MinIO locales
+│   ├── integration/                  # contra Supabase y MinIO locales; render con FFmpeg real (test_compose_render.py)
 │   ├── fixtures/                     # transcripciones, video corto de prueba
 │   └── e2e/
 └── src/content_engine/
-    ├── main.py                       # CLI: worker io | cpu | maintenance | prototype
+    ├── main.py                       # CLI: comandos de desarrollo por paso (cut, camera-path, compose, verify-clip…), prototype (T2.7) y worker io | cpu | maintenance (Sprint 4)
     ├── bootstrap.py                  # raíz de composición: arma adaptadores y contexto
     ├── config.py                     # pydantic-settings (variables de entorno)
     ├── shared/                       # núcleo compartido: ids, errores, tiempo, Money, transcript (Word, Transcript)
@@ -185,13 +185,13 @@ worker/
     │   ├── post/  blog/  newsletter/  quote/  carousel/
     │   └── clip/
     │       ├── steps/                # decide, extract, analyze, compose, verify
-    │       └── domain/               # timeline, faces, camera_path, captions_ass, render_plan, ffmpeg_args
+    │       └── domain/               # timeline, faces, camera_path, sendcmd, path_checks, verify, captions_ass, render_plan, ffmpeg_args
     └── adapters/
         ├── db/                       # psycopg: repositorios y la cola
         ├── llm/anthropic.py
         ├── transcription/assemblyai.py
         ├── storage/s3.py
-        └── media/                    # ffmpeg.py, mediapipe_faces.py (pyright basic), face_preview.py, playwright_render.py
+        └── media/                    # ffmpeg.py, clip_probe.py, mediapipe_faces.py (pyright basic), face_preview.py, playwright_render.py
 ```
 
 ### 5.2 Reglas de dependencia

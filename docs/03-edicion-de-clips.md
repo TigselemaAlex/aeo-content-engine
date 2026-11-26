@@ -249,11 +249,12 @@ Sobre el intermedio, reducido a ~640 px de ancho:
    - zona muerta: no se mueve mientras el centro de la cara esté dentro del 10 % central **del lado de la ventana en cada eje**: del ancho en horizontal (±30 px en 608) y del alto en vertical (±49 px en 982). Al salir, apunta a centrar la cara. Sin zoom la ventana ocupa todo el alto y no se mueve en vertical; la zona vertical solo cuenta en puentes y zooms, donde sobra más espacio que en horizontal,
    - suavizado con un resorte amortiguado crítico (ω = 8, llega en ~0,6 s sin pasarse) y velocidad máxima de 600 px/s (20 px por fotograma),
    - límites para que la cara quede visible (`keep_face_visible`): se permite dejar afuera hasta un **5 % del ancho de la caja por lado**, para que el ruido de los bordes de la detección no haga temblar la ventana. Si aun así la cara no cabe, la ventana se centra en ella. Esta regla gana sobre la velocidad máxima.
+   - cuando esta regla (o el borde del cuadro) mueve la ventana, el resorte se detiene ahí y apunta a ese lugar. Si no, la zona muerta, que compara la cara con la cámara ya empujada junto a ella, conservaba un objetivo viejo; el resorte tiraba en contra del empuje y la ventana copiaba el ruido del borde de la caja (6 vaivenes de 2–8 px en la salida sobre el tramo de prueba; con la regla, 0 y un 22 % menos de recorrido de la cámara; decidido el 26 nov 2026, T2.3).
 5. **Zooms:** en cada `emphasis.kind = zoom`, la ventana se achica hasta `zoom.max_scale` (1.15): entrada de 1,5 s (el medio de `zoom.ease_s`), 1 s sostenido y salida de 1,5 s. En total 4 s, la separación mínima entre zooms. Las curvas usan *smoothstep* (3p² − 2p³). Los índices de palabra se pasan a tiempo del clip antes (`words_to_clip_ms` en el timeline).
 6. **Puentes de corte** (`cut_bridge = punch_in`): en cada salto de imagen (`Timeline.video_cut_points_ms`), el encuadre alterna al instante entre 100 % y 110 % y la cámara salta a la cara, así el corte se lee como cambio de plano y no como salto. Con un zoom en curso: escala = base + (1,15 − base) × avance del zoom; con el zoom completo el puente no se nota. Esto también cumple el "cambio visual cada 2–3 s" de las reglas base.
 7. **Sin cara** más de 2 s (por ejemplo, se sale de cuadro): se mantiene la última posición, y el camino devuelve esos tramos (todo el hueco, `no_face`) para que el render use `fit_blur` (cuadro completo centrado sobre el mismo video desenfocado). Un hueco es más de 200 ms entre dos cajas.
 
-Ancho y alto de la ventana se redondean a números pares (`yuv420p`). El fotograma de cada corte es `round(ms × 30 ÷ 1000)`, la misma cuenta con la que el intermedio recorta sus tramos (§5.2), y hay un keyframe por fotograma real: `round(duración × 30 ÷ 1000)`.
+Ancho y alto de la ventana se redondean a números pares (`yuv420p`). La posición se redondea por el **centro**: primero el centro a píxel entero y después el borde, centro − lado ÷ 2 (exacto porque el lado es par). Redondear el borde por su cuenta hacía que, con el centro en 490,5 y el alto creciendo de a 2 px al salir de un zoom, el centro alternara 490 ↔ 491 (T2.3). El fotograma de cada corte es `round(ms × 30 ÷ 1000)`, la misma cuenta con la que el intermedio recorta sus tramos (§5.2), y hay un keyframe por fotograma real: `round(duración × 30 ÷ 1000)`.
 
 Resultado: una lista de *keyframes* de recorte `(t, x, y, w, h)`, los tramos sin cara y la caja de la cara por tiempo, que sirve para ubicar los subtítulos (`avoid_face`) y para la revisión automática.
 
@@ -279,9 +280,32 @@ Un solo comando FFmpeg con `filter_complex`:
 - **Audio:** voz normalizada a `loudness_lufs` (−14 LUFS, dos pasadas) + música en bucle a `volume_db` con *ducking* (baja cuando hay voz) + sfx en los puntos marcados, si están permitidos.
 - **Salida:** H.264 High, `yuv420p`, 30 fps, AAC 48 kHz, `+faststart`. Si supera `max_size_mb`, se recodifica a una tasa objetivo.
 
-El recorte variable se hace con comandos de tiempo de FFmpeg (`sendcmd` sobre el filtro `crop`). **Se valida en la Fase 0**. Si no queda fluido, el plan B es recortar cuadro por cuadro en Python (PyAV) y pasar los cuadros a FFmpeg: más lento pero con control total.
+El recorte variable se hace con comandos de tiempo de FFmpeg (`sendcmd` sobre el filtro `crop`), **validado en la T2.3** (26 nov 2026) con FFmpeg 9.0.2. El plan B (PyAV) no hizo falta: el render reproduce el camino de cámara fotograma por fotograma, así que un temblor solo puede venir del camino, y PyAV dibujaría el mismo. Detalles que el resultado necesita:
+
+- **Un comando por valor que cambia**, medio fotograma antes de su fotograma: `(n − 0,5) ÷ 30` s. `sendcmd` aplica un comando al primer fotograma cuyo tiempo es igual o posterior; el `t_ms` del keyframe está redondeado a milisegundos (fotograma 2 → 67 ms, pero empieza en 66,7 ms) y con él un tercio de los fotogramas llegaba un fotograma tarde, incluidos 3 puentes. El archivo de comandos lo arma el dominio (`sendcmd.py`); el adaptador lo escribe en una carpeta temporal y corre FFmpeg desde ella (en Windows el `:` de `C:/` rompe la opción del filtro).
+- **`crop=…:exact=1`.** Sin `exact`, en `yuv420p` `crop` redondea `x` e `y` impares hacia abajo y la cámara avanza de a 2 px.
+- **La ventana cambia de tamaño** (92 tamaños y 208 cambios en el tramo de prueba) y `scale=1080:1920` se reconfigura con cada tamaño de entrada, así la salida queda fija; `setsar=1` evita que una ventana que no es exactamente 9:16 deje píxeles no cuadrados. Se descartaron sin medir escalar el cuadro entero con un factor variable y recortar fijo (el mismo mecanismo de reconfiguración, con hasta el doble de píxeles por fotograma) y PyAV (más lento y más código).
+- **Escala bicubic.** En el tramo de prueba (33,5 s, recortar + escalar + codificar): bilinear 6,0 s, bicubic 6,7 s, lanczos 8,1 s, spline 17,3 s; el detalle conservado (la salida reducida de nuevo y comparada con el recorte) fue 43,8, 45,4, 44,5 y 44,4 dB. Bicubic y lanczos no se distinguen en la cara; bilinear se ve apenas más blando.
+- **Codificación provisional:** CRF 18, preset `veryfast` (elegidos sin medir; la T2.7 mide el tiempo por clip). El audio se copia del intermedio hasta la T2.5 (loudness).
+
+Una prueba de integración (`worker/tests/integration/test_compose_render.py`) renderiza un video sintético de FFmpeg y falla si se quita `exact=1` o si los comandos usan `t_ms`; así una versión distinta de FFmpeg en la imagen del worker no rompe el recorte sin aviso.
 
 ### 5.7 Verify
+
+Desde la T2.3 el comando de desarrollo `verify-clip` mide el clip contra su camino de cámara y falla si algo se sale del límite (aprobados el 26 nov 2026). Las mismas comprobaciones pasan a este paso cuando exista:
+
+| Comprobación | Límite | Tramo de prueba |
+| --- | --- | --- |
+| Tamaño, fps y fotogramas | 1080x1920, 30 fps, uno por keyframe | 1080x1920, 30, 1004 |
+| Sincronía | duración de imagen y audio a ≤ 1 fotograma (33,3 ms) | 9,3 ms |
+| Cada fotograma en su ventana | 0 fotogramas que se parezcan más a la ventana de un vecino (por más de 0,5 dB) | 0 |
+| Parecido con su ventana | ≥ 35 dB en el peor fotograma | 43,9 dB |
+| Puentes en su corte | todos en su fotograma | 9/9 |
+| Cara dentro | ≤ 5 % de la caja por lado (o la mitad del sobrante si no cabe y se centra), + 1 px de redondeo; lo que sale del cuadro no cuenta | 0 (peor: 5,4 %, cara de 597 px en ventana de 534) |
+| Saltos fuera de los cortes | ≤ 20 px por fotograma (600 px/s) | 0 (máx. 17 px) |
+| Vaivenes | 0 idas y vueltas a → b → a | 0 |
+
+La primera fila son tres comprobaciones (tamaño, fps y fotogramas): 10 en total. Para el parecido, cada fotograma de la salida se reduce al tamaño de su ventana y se compara (PSNR en gris) con el intermedio recortado en su keyframe y en los de sus vecinos. Además:
 
 - `ffprobe`: resolución, fps, códecs, duración dentro del rango, audio presente.
 - Decodificación completa sin errores y detección de cuadros congelados.
@@ -348,7 +372,7 @@ pieces/{job_id}/{piece_id}/v{n}/
   poster.jpg
 ```
 
-`work/` se borra con la retención del original (RNF-06). La versión final queda en `pieces/`.
+El archivo de comandos de `sendcmd` no se guarda aquí: lo escribe el adaptador en una carpeta temporal para cada render y sale de los keyframes de `analysis` (§5.6). `work/` se borra con la retención del original (RNF-06). La versión final queda en `pieces/`.
 
 ---
 
@@ -365,7 +389,7 @@ pieces/{job_id}/{piece_id}/v{n}/
 | verify | 10–15 s |
 | **Total** | **~2–3 min por clip**; 6 clips con 3 en paralelo ≈ 5–8 min |
 
-Se mide en la Fase 0.
+Se mide en la Fase 0. Medido en la T2.3 sobre el tramo de prueba (33,5 s): `compose` solo con recorte, escala y codificación, ~7 s; `verify-clip`, que compara cada fotograma con su ventana, ~24 s, por encima de la fila verify (revisar en la T2.7 si en producción se compara una muestra de fotogramas). El resto lo mide la T2.7.
 
 ---
 
@@ -375,13 +399,13 @@ Se mide en la Fase 0.
 
 **Material:** una grabación propia del mismo tipo que los videos de Guidepost (una persona a cámara, grabación horizontal, en inglés) y el Edit Spec de Guidepost. La agencia no puede compartir videos de clientes por ahora (`00-resumen-decisiones.md`, "Material de prueba").
 
-**Forma:** un script de línea de comandos en el worker, sin base de datos ni web: `python -m content_engine.clips.prototype video.mp4 spec.json decision.json`. La transcripción se pide una vez a AssemblyAI y se guarda en un archivo.
+**Forma:** comandos de línea de comandos en el worker, sin base de datos ni web (`python -m content_engine <comando>`): hoy uno por paso (`cut`, `detect-faces`, `camera-path`, `compose`, `verify-clip`); la T2.7 agrega `prototype`, que los encadena. La transcripción se pide una vez a AssemblyAI y se guarda en un archivo.
 
 | # | Experimento | Criterio de éxito |
 | --- | --- | --- |
 | 1 | Timeline con muletillas, pausas y J cuts | Ningún corte se come una sílaba; los cortes no se notan al escucharlos |
 | 2 | Encuadre 16:9 → 9:16 con MediaPipe | La cara siempre completa; sin temblores; movimiento casi imperceptible en plano fijo |
-| 3 | Zooms y puentes de corte con recorte variable (`sendcmd`) | Movimiento fluido; si no, se prueba el plan B (PyAV) |
+| 3 | Zooms y puentes de corte con recorte variable (`sendcmd`) | Movimiento fluido; si no, se prueba el plan B (PyAV). **Cumplido en la T2.3 con `sendcmd`** (`verify-clip` 10 de 10, §5.6–5.7) |
 | 4 | Subtítulos ASS en Figtree, naranja sobre negro, resaltado por palabra | Sincronía a simple vista; nunca sobre la cara |
 | 5 | Audio a −14 LUFS, sin sfx (Guidepost) | Medido con FFmpeg |
 | 6 | JSON de decisiones con Claude sobre 3 momentos reales | JSON válido sin intervención; hook dentro de 3 s; duración en rango |
@@ -396,7 +420,7 @@ Se mide en la Fase 0.
 | Riesgo | Impacto | Mitigación |
 | --- | --- | --- |
 | Clientes como Guidepost dependen de gráficos animados (fuera de alcance) | Para ellos el revisor de video no se podrá apagar y no llegarán a la meta de 90 % de clips sin editor | Avisar a la agencia ahora; medir la meta solo en clientes sin esa regla |
-| Recorte variable con `sendcmd` no fluido | Zooms y encuadre bruscos | Plan B con PyAV, validado en la Fase 0 |
+| Recorte variable con `sendcmd` no fluido | Zooms y encuadre bruscos | **Cerrado en la T2.3:** `verify-clip` 10 de 10, 0 de 1004 fotogramas fuera de su ventana; PyAV descartado (§5.6). La prueba de integración avisa si otra versión de FFmpeg rompe el recorte |
 | "Cambio visual cada 2–3 s" con una sola cámara se vuelve repetitivo | Clips monótonos | Alternar puentes de corte y zooms; ajustar con la muestra aprobada |
 | Edit Specs con muchos campos "[To confirm]" | El resultado no coincide con lo que el cliente espera | Usar reglas base y mostrar los pendientes en la ficha del cliente |
 | Nombres de marca mal transcritos | Subtítulos con errores | Glosario del cliente a AssemblyAI + revisión con Haiku |

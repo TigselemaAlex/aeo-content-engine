@@ -302,11 +302,11 @@ La Fase 1 queda en 4 sprints (8 semanas) en lugar de las 4 a 5 semanas del resum
 
 **Qué vas a construir:** un solo comando que va del video al clip final, y el informe de la Fase 0.
 
-1. Comando `prototype` que encadena: decisión de Claude → timeline → corte → caras → camino → subtítulos → composición → audio.
+1. Comando `prototype` que encadena: decisión de Claude → timeline → corte → caras → camino → subtítulos → composición → audio. Los pasos ya existen como comandos sueltos (`cut`, `detect-faces`, `camera-path`, `compose`, `verify-clip`); `prototype` los llama en orden.
 2. Agregar el logo y el texto del hook si el spec lo pide.
-3. Medir cuánto tarda cada parte. ✔ Menos de 3 min por clip (experimento 7).
+3. Medir cuánto tarda cada parte y fijar el CRF y el preset definitivos del clip (hoy 18 y `veryfast`, sin medir: `03` §5.6). ✔ Menos de 3 min por clip (experimento 7).
 4. Generar 3 clips y verlos en el celular, junto a la muestra aprobada.
-5. Escribir `docs/fase-0-informe.md`: qué funcionó, qué no, tiempos y decisiones (por ejemplo, si quedó `sendcmd` o PyAV).
+5. Escribir `docs/fase-0-informe.md`: qué funcionó, qué no, tiempos y decisiones (`sendcmd` ya quedó elegido en la T2.3, `03` §5.6: se resume).
 
 **Terminaste cuando:** tienes los 3 clips y el informe.
 
