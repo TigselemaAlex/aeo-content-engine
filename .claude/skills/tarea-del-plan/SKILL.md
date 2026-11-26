@@ -13,6 +13,7 @@ El plan de trabajo (`docs/07-plan-de-trabajo.md`) esta escrito como un tutorial:
 2. Abre `docs/07-plan-de-trabajo.md` y busca la tarea exacta (`### T1.3 · ...`). Trae: **que vas a construir**, **que vas a aprender**, **lee antes**, los **pasos** con su ✔ y **terminaste cuando**.
 3. Lee la seccion que indique "**Lee antes**". Es la parte del diseño que esa tarea implementa; sin eso se termina improvisando.
 4. Si la tarea toca algo que no esta decidido en los documentos, **pregunta antes de asumir** en lugar de resolverlo por tu cuenta.
+5. **Rama:** crea `feat/…` desde `main` actualizado (`git pull --ff-only`). Borra una rama vieja solo si su PR esta fusionado: `test "$(gh pr view <rama> --json state --jq .state)" = MERGED` tiene que dar exito antes del `git branch -D` y del `git push --delete`, en el mismo comando. Si da otro estado, detente y avisa (26 nov 2026: se borro la rama de un PR abierto y GitHub lo cerro).
 
 Las comprobaciones ✔ estan en `docs/07`, no en ClickUp: las subtareas de ClickUp traen el texto del paso pero no el comando que lo verifica.
 
