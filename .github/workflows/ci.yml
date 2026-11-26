@@ -51,12 +51,22 @@ jobs:
           sudo apt-get install -y --no-install-recommends ffmpeg
           ffmpeg -version | head -n 1
 
-      - name: Diagnose FFmpeg stdin (temporary)
+      - name: Diagnose FFmpeg crop (temporary)
+        working-directory: ${{ runner.temp }}
         run: |
-          timeout 60 ffmpeg -v error -f lavfi -i testsrc2=size=320x240:rate=30:duration=1 -f null - ; echo "plain exit=$?"
-          timeout 60 ffmpeg -nostdin -v error -f lavfi -i testsrc2=size=320x240:rate=30:duration=1 -f null - ; echo "nostdin exit=$?"
-          python3 -c "import subprocess; r = subprocess.run(['ffmpeg','-v','error','-f','lavfi','-i','testsrc2=size=320x240:rate=30:duration=1','-f','null','-'], capture_output=True, timeout=60); print('python plain exit', r.returncode)" || echo "python plain FAILED"
+          ffmpeg -v error -y -f lavfi -i testsrc2=size=1920x1080:rate=30:duration=2 -pix_fmt yuv420p -c:v libx264 m.mp4
+          printf '0.0000 [enter] crop@camera x 601;
+0.9833 [enter] crop@camera x 700;
+' > move.cmd
+          printf '0.0000 [enter] crop@camera x 601;
+0.9833 [enter] crop@camera w 552, [enter] crop@camera h 982, [enter] crop@camera x 700, [enter] crop@camera y 49;
+' > resize.cmd
+          run() { echo "=== $1"; timeout 60 ffmpeg -nostdin -v verbose -y -i m.mp4 -filter_complex "$2" -map "[v]" -c:v libx264 -preset veryfast out.mp4 > log.txt 2>&1; echo "exit=$?"; grep -iE "error|invalid|crop|scale|reinit|changing|frame=" log.txt | tail -12; }
+          run "move only, crop+scale" "[0:v]sendcmd=f=move.cmd,crop@camera=608:1080:601:0:exact=1,scale=1080:1920:flags=bicubic,setsar=1,format=yuv420p[v]"
+          run "resize, crop only" "[0:v]sendcmd=f=resize.cmd,crop@camera=608:1080:601:0:exact=1,format=yuv420p[v]"
+          run "resize, crop+scale" "[0:v]sendcmd=f=resize.cmd,crop@camera=608:1080:601:0:exact=1,scale=1080:1920:flags=bicubic,setsar=1,format=yuv420p[v]"
+          run "resize, crop+scale no exact" "[0:v]sendcmd=f=resize.cmd,crop@camera=608:1080:601:0,scale=1080:1920:flags=bicubic,setsar=1,format=yuv420p[v]"
 
       - name: Pytest (unit tests and doctests)
-        timeout-minutes: 6
+        timeout-minutes: 4
         run: uv run pytest -v
