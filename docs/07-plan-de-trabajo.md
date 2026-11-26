@@ -2,9 +2,9 @@
 
 **Proyecto:** Content Engine (AEO.co) · **Fecha:** 13 de noviembre de 2026 · **Autor:** Alex Tigselema
 
-Plan para construir la Fase 0 (prototipo de clips) y la Fase 1 (base de la app y piezas de texto). Está escrito como un tutorial: cada tarea dice qué vas a construir, qué vas a aprender y los pasos en orden. La idea es que tú escribas el código y que más adelante puedas repetir estas tareas sin ayuda.
+Plan para construir la Fase 0 (prototipo de clips) y la Fase 1 (base de la app y piezas de texto). Está escrito como un tutorial: cada tarea dice qué vas a construir, qué vas a aprender y los pasos en orden. Desde el 25 nov 2026 (T2.2b) Claude escribe el código de cada paso y lo explica, y tú lo orientas y lo apruebas (ver `00`, "Plan de trabajo"); el formato de tutorial sigue sirviendo para entender cada tarea y poder repetirla más adelante sin ayuda.
 
-Está listo para pasarlo a ClickUp: cada **sprint** es una lista, cada **tarea** es una tarea y cada **paso** es una subtarea.
+Está cargado en ClickUp (13 nov 2026): cada **sprint** es una lista, cada **tarea** es una tarea y cada **paso** es una subtarea. Las comprobaciones (✔) de cada paso están solo aquí.
 
 ---
 
