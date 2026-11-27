@@ -2,8 +2,9 @@
 
 Only running FFmpeg lives here: the arguments of the clip cut and of the compose, and
 the crop commands, are built by the pure clip domain (`ffmpeg_args.py` and `sendcmd.py`,
-docs/06 §5.2). Cut times are milliseconds of the source video; crop windows are pixels
-and frames of the mezzanine. The `ffmpeg` program must be on the PATH.
+docs/06 §5.2). The compose can also burn an ASS captions file; `libass.py` checks its
+font and stages it. Cut times are milliseconds of the source video; crop windows are
+pixels and frames of the mezzanine. The `ffmpeg` program must be on the PATH.
 """
 
 import functools
@@ -11,8 +12,10 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from content_engine.adapters.media.libass import check_caption_fonts, stage_captions
 from content_engine.piece_types.clip.domain.camera_path import CropKeyframe
 from content_engine.piece_types.clip.domain.ffmpeg_args import (
+    CAPTIONS_FILE,
     MIN_FFMPEG_MAJOR,
     build_compose_args,
     build_extract_args,
@@ -136,7 +139,13 @@ def _ffmpeg_version() -> str:
     return result.stdout.decode(errors="replace")
 
 
-def compose_clip(mezzanine_path: Path, keyframes: list[CropKeyframe], output_path: Path) -> None:
+def compose_clip(
+    mezzanine_path: Path,
+    keyframes: list[CropKeyframe],
+    output_path: Path,
+    captions_path: Path | None = None,
+    fonts_dir: Path | None = None,
+) -> None:
     """Crop the mezzanine along the camera path and scale it to the 1080x1920 vertical clip.
 
     Before the compose it checks the FFmpeg on the PATH with
@@ -149,6 +158,12 @@ def compose_clip(mezzanine_path: Path, keyframes: list[CropKeyframe], output_pat
     runs FFmpeg with `build_compose_args` from that folder, so the filter receives the
     bare file name: a Windows path such as `C:/...` inside a filter argument breaks on
     the `:`.
+    With `captions_path`, it first draws the captions small with libass
+    (`check_caption_fonts`) and stops if libass would use a font other than the
+    style's, in its weight: libass falls back to a system font without failing
+    (docs/03 §5.4). Then it copies the ASS file and the fonts into the same temporary
+    folder (`stage_captions`), and the compose burns them after the scale, at 1080x1920
+    (`compose_filter`).
     The clip is H.264 High in yuv420p at 30 fps with `+faststart`, and the mezzanine's
     audio is copied as it is (docs/03 §5.6). There is no frame rate argument: the
     command times of `crop_commands` follow the 30 fps of the mezzanine (docs/03 §5.2)
@@ -164,35 +179,51 @@ def compose_clip(mezzanine_path: Path, keyframes: list[CropKeyframe], output_pat
             `camera_path`.
         output_path: Where to write the clip, for example `clip.mp4`. Its folder must
             already exist.
+        captions_path: ASS file from the `captions` command, burned after the scale.
+            None makes a clip without captions.
+        fonts_dir: Folder with the font files of the captions, such as
+            `assets/fonts`. Needed with `captions_path`, unused without it.
 
     Raises:
-        ValueError: If `keyframes` is empty, before FFmpeg runs.
+        ValueError: If `keyframes` is empty, or if `captions_path` comes without
+            `fonts_dir`, before FFmpeg runs. Also if the captions file has no
+            `Style: Caption,...` line (`read_ass_style`).
         RuntimeError: If the FFmpeg on the PATH is older than 9, before the compose
-            runs; the message carries the first line of `ffmpeg -version`. Also if
+            runs; the message carries the first line of `ffmpeg -version`. With
+            captions, also before the compose if `fonts_dir` has no font file or
+            libass would pick another font (`check_caption_fonts`). Also if
             `ffmpeg -version` or the compose exits with an error; the message then
             carries FFmpeg's error output.
-        subprocess.TimeoutExpired: If FFmpeg runs for more than 900 s, or
-            `ffmpeg -version` takes more than 30 s (a safety cap, not measured).
+        subprocess.TimeoutExpired: If FFmpeg runs for more than 900 s, the font check
+            for more than 300 s, or `ffmpeg -version` takes more than 30 s (a safety
+            cap, not measured).
 
     Example:
         On the test stretch (words 29 to 108) the 1004 keyframes give a 579-line
         `crop.cmd`, and the clip comes out 1080x1920 at 30 fps with 1004 frames, in
-        about 7 s. With Ubuntu 24.04's FFmpeg 6.1.1 it stops at once with
+        about 7.5 s, or 12.4 s with captions, font check included (docs/03 §5.6).
+        With Ubuntu 24.04's FFmpeg 6.1.1 it stops at once with
         `RuntimeError: compose needs FFmpeg 9 or later, found: ffmpeg version
         6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers. Older versions
         crash or hang when the crop changes size (docs/03 section 5.6).`
     """
     if not keyframes:
         raise ValueError("the camera path has no keyframes")
+    if captions_path is not None and fonts_dir is None:
+        raise ValueError("captions need a fonts folder")
     version = _ffmpeg_version()
     if not ffmpeg_supports_variable_crop(version):
         raise RuntimeError(
             f"compose needs FFmpeg {MIN_FFMPEG_MAJOR} or later, found: {version.splitlines()[0]}. "
             "Older versions crash or hang when the crop changes size (docs/03 section 5.6)."
         )
+    if captions_path is not None and fonts_dir is not None:
+        check_caption_fonts(captions_path, fonts_dir, frames=len(keyframes))
     with tempfile.TemporaryDirectory() as work_dir:
         commands_file = Path(work_dir) / "crop.cmd"
         commands_file.write_text(crop_commands(keyframes), encoding="utf8")
+        if captions_path is not None and fonts_dir is not None:
+            stage_captions(captions_path, fonts_dir, Path(work_dir))
         args = [
             "ffmpeg",
             *build_compose_args(
@@ -200,6 +231,7 @@ def compose_clip(mezzanine_path: Path, keyframes: list[CropKeyframe], output_pat
                 first=keyframes[0],
                 commands_file=commands_file.name,
                 output=str(output_path.resolve()),
+                captions_file=CAPTIONS_FILE if captions_path is not None else None,
             ),
         ]
         try:

@@ -15,6 +15,7 @@ from pydantic import TypeAdapter, ValidationError
 from content_engine.adapters.media.clip_probe import match_frames, probe_video
 from content_engine.adapters.media.face_preview import save_face_preview
 from content_engine.adapters.media.ffmpeg import compose_clip, extract_audio, extract_clip
+from content_engine.adapters.media.libass import probe_captions
 from content_engine.adapters.media.mediapipe_faces import detect_faces
 from content_engine.adapters.transcription.assemblyai import transcribe
 from content_engine.config import Settings, get_settings
@@ -22,6 +23,15 @@ from content_engine.piece_types.clip.domain.camera_path import (
     CameraPath,
     camera_path,
     cut_at_frames,
+    cut_frame_starts_ms,
+)
+from content_engine.piece_types.clip.domain.caption_checks import check_captions, highlight_plane
+from content_engine.piece_types.clip.domain.captions_ass import (
+    CaptionStyle,
+    captions_ass,
+    plan_captions,
+    read_ass_style,
+    words_in_clip,
 )
 from content_engine.piece_types.clip.domain.faces import FaceBox, pick_main_face
 from content_engine.piece_types.clip.domain.ffmpeg_args import OUTPUT_H, OUTPUT_W
@@ -37,6 +47,14 @@ from content_engine.shared.transcript import Transcript
 app = typer.Typer()
 """The Typer app with every command; `python -m content_engine` and `content-engine` run it."""
 
+FONTS_DIR = Path("assets/fonts")
+"""Default folder with the caption fonts, relative to `worker/`.
+
+Holds the Phase 0 caption font, `Figtree-Bold.ttf` v2.0.3 from erikdkennedy/figtree,
+with its `OFL.txt` license (docs/03 §5.4, row "Fuentes"). The commands that take
+`--fonts-dir` must run from `worker/` for this default to be found.
+"""
+
 
 @app.callback()
 def main() -> None:
@@ -44,7 +62,8 @@ def main() -> None:
 
     Development commands that run one step of the clip pipeline on local
     files: extract the audio, transcribe it, cut the mezzanine, find the
-    face, build the camera path, compose the vertical clip and verify it.
+    face, build the camera path, write the captions, compose the vertical
+    clip and verify it.
     """
 
 
@@ -243,23 +262,87 @@ def camera_path_command(
     )
 
 
+@app.command("captions")
+def captions_command(
+    transcript_path: Annotated[Path, typer.Argument(help="Transcript JSON used with cut")],
+    faces_path: Annotated[Path, typer.Argument(help="Faces JSON from detect-faces")],
+    camera_path_file: Annotated[Path, typer.Argument(help="Camera path JSON from camera-path")],
+    from_word: Annotated[int, typer.Option("--from", help="First word index")],
+    to_word: Annotated[int, typer.Option("--to", help="Last word index")],
+    highlight: Annotated[
+        str, typer.Option(help="Words to highlight: word, keywords or none")
+    ] = "word",
+    keyword_words: Annotated[
+        list[int] | None,
+        typer.Option("--keyword-word", help="Word index to highlight with keywords (repeatable)"),
+    ] = None,
+    output: Annotated[Path, typer.Option(help="Output ASS file")] = Path("captions.ass"),
+) -> None:
+    """Write the word-by-word captions of the clip as an ASS subtitle file.
+
+    Rebuilds the cuts from the transcript, --from and --to, which must be
+    the same ones given to cut and camera-path. Keeps the words the clip
+    plays (no fillers), groups them in lines of up to 4 words and 22
+    characters, and places each line 20 px below the lowest chin of its
+    frames, in Figtree Bold 72 on a black box. Each word turns white on
+    the frame nearest its start; with --highlight keywords only the words
+    given with --keyword-word do. Prints the number of lines, of words and
+    of words shorter than a frame (shown, but never highlighted).
+    """
+    try:
+        style = CaptionStyle.model_validate({"highlight_mode": highlight})
+    except ValidationError:
+        raise typer.BadParameter(
+            "must be word, keywords or none", param_hint="--highlight"
+        ) from None
+    transcript = Transcript.model_validate_json(transcript_path.read_text(encoding="utf8"))
+    faces = TypeAdapter(list[FaceBox]).validate_json(faces_path.read_text(encoding="utf8"))
+    path = CameraPath.model_validate_json(camera_path_file.read_text(encoding="utf8"))
+    timeline = build_timeline(
+        words=transcript.words, segment=Segment(from_word=from_word, to_word=to_word)
+    )
+    cut_ms = cut_frame_starts_ms(cut_at_frames(timeline.video_cut_points_ms, timeline.duration_ms))
+    words = words_in_clip(transcript.words[from_word : to_word + 1], timeline)
+    plan = plan_captions(words, path.keyframes, faces, cut_ms, style)
+    keywords = frozenset(keyword_words or [])
+    output.write_text(captions_ass(plan, style, keywords), encoding="utf8")
+    print(
+        f"Captions saved to {output} ({len(plan.lines)} lines - {len(words)} words - "
+        f"{len(plan.skipped)} shorter than a frame)"
+    )
+
+
 @app.command("compose")
 def compose_command(
     mezzanine: Annotated[Path, typer.Argument(help="Mezzanine from cut")],
     camera_path_file: Annotated[Path, typer.Argument(help="Camera path JSON from camera-path")],
     output: Annotated[Path, typer.Option(help="Output vertical video")] = Path("clip.mp4"),
+    captions: Annotated[
+        Path | None, typer.Option(help="ASS file from captions, burned into the clip")
+    ] = None,
+    fonts_dir: Annotated[Path, typer.Option(help="Folder with the caption fonts")] = FONTS_DIR,
 ) -> None:
     """Crop the mezzanine along the camera path into a 1080x1920 clip.
 
     Moves a crop window over MEZZANINE frame by frame, as CAMERA_PATH_FILE
     says, scales each window to 1080x1920 and writes the vertical clip to
     --output: H.264 at 30 fps, with the audio of the mezzanine copied as
-    it is. Prints the number of frames.
+    it is. With --captions it also burns the captions, with the fonts of
+    --fonts-dir, and stops before rendering if libass would use another
+    font or weight. Run it from worker/ so the default --fonts-dir is
+    found. Prints the number of frames.
     """
     path = CameraPath.model_validate_json(camera_path_file.read_text(encoding="utf8"))
-    compose_clip(mezzanine_path=mezzanine, keyframes=path.keyframes, output_path=output)
+    compose_clip(
+        mezzanine_path=mezzanine,
+        keyframes=path.keyframes,
+        output_path=output,
+        captions_path=captions,
+        fonts_dir=fonts_dir if captions is not None else None,
+    )
     print(
-        f"Vertical clip saved to {output} ({len(path.keyframes)} frames at {OUTPUT_W}x{OUTPUT_H})"
+        f"Vertical clip saved to {output} ({len(path.keyframes)} frames at {OUTPUT_W}x{OUTPUT_H}"
+        f"{', with captions' if captions is not None else ''})"
     )
 
 
@@ -272,6 +355,10 @@ def verify_clip_command(
     transcript_path: Annotated[Path, typer.Argument(help="Transcript JSON used with cut")],
     from_word: Annotated[int, typer.Option("--from", help="First word index")],
     to_word: Annotated[int, typer.Option("--to", help="Last word index")],
+    captions: Annotated[
+        Path | None, typer.Option(help="ASS file burned into the clip, to check it too")
+    ] = None,
+    fonts_dir: Annotated[Path, typer.Option(help="Folder with the caption fonts")] = FONTS_DIR,
 ) -> None:
     """Check that a vertical clip follows its camera path smoothly.
 
@@ -280,8 +367,13 @@ def verify_clip_command(
     within 1 frame of the video; that every frame shows its own crop
     window and each cut bridge lands on its cut; that the face is not cut
     more than 5 % per side (or evenly, when it does not fit); and that the
-    window has no jumps over 20 px per frame and no wobbles. Prints one
-    line per check and exits with code 1 if any fails.
+    window has no jumps over 20 px per frame and no wobbles. With
+    --captions it draws the captions alone with libass and also checks the
+    font, the words, that each word turns white within half a frame of its
+    start, that the captions never overlap the face, and warns when they
+    leave the platform safe zone. The caption style is read from the ASS
+    file. Prints one line per check (10, or 15 with --captions) and exits
+    with code 1 if any fails; a warning does not.
     """
     path = CameraPath.model_validate_json(camera_path_file.read_text(encoding="utf8"))
     faces = TypeAdapter(list[FaceBox]).validate_json(faces_path.read_text(encoding="utf8"))
@@ -292,20 +384,51 @@ def verify_clip_command(
     cut_frames = cut_at_frames(timeline.video_cut_points_ms, timeline.duration_ms)
 
     source = probe_video(mezzanine)
+    ass_text = captions.read_text(encoding="utf8") if captions is not None else ""
+    frames, fonts = (
+        probe_captions(
+            captions,
+            fonts_dir,
+            frames=len(path.keyframes),
+            highlight=highlight_plane(read_ass_style(ass_text)),
+        )
+        if captions is not None
+        else ([], [])
+    )
 
     checks = verify_clip(
         info=probe_video(clip),
-        matches=match_frames(mezzanine, clip, path.keyframes),
+        matches=match_frames(
+            mezzanine,
+            clip,
+            path.keyframes,
+            covers=[frame.caption for frame in frames] if captions is not None else None,
+        ),
         path=check_path(
             path.keyframes, faces, cut_frames, frame_w=source.width, frame_h=source.height
         ),
         cut_frames=cut_frames,
     )
+    if captions is not None:
+        checks += check_captions(
+            ass_text=ass_text,
+            words=transcript.words[from_word : to_word + 1],
+            timeline=timeline,
+            frames=frames,
+            fonts=fonts,
+            keyframes=path.keyframes,
+            faces=faces,
+            cut_frames=cut_frames,
+        )
 
     for check in checks:
-        mark = "OK  " if check.ok else "FAIL"
+        mark = "OK  " if check.ok else ("FAIL" if check.blocking else "WARN")
         print(f"{mark} {check.name:<24} {check.value}  (limit {check.limit})")
-    failed = sum(1 for check in checks if not check.ok)
-    print(f"{len(checks) - failed} of {len(checks)} checks passed")
+    failed = sum(1 for check in checks if not check.ok and check.blocking)
+    warned = sum(1 for check in checks if not check.ok and not check.blocking)
+    print(
+        f"{len(checks) - failed - warned} of {len(checks)} checks passed"
+        f"{f', {warned} warning' + ('s' if warned > 1 else '') if warned else ''}"
+    )
     if failed:
         raise typer.Exit(code=1)

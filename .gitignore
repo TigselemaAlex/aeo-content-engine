@@ -46,3 +46,6 @@ worker/faces.json
 worker/face-previews/
 worker/camera-path.json
 worker/camera-path.png
+
+# Captions written by the captions command
+worker/captions.ass

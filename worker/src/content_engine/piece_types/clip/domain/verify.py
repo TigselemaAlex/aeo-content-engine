@@ -113,12 +113,17 @@ class Check(BaseModel):
         value: What was measured, as text for the report, such as `"9.3 ms"`.
         limit: What it must be, as text for the report, such as `"<= 33.3 ms"`.
         ok: Whether the value is within the limit.
+        blocking: Whether a value outside the limit fails `verify-clip`. When False,
+            it is only reported as a warning (`WARN`) and the command still exits
+            with code 0. True by default; only `captions in safe zone` is False
+            (docs/03 §5.7).
     """
 
     name: str
     value: str
     limit: str
     ok: bool
+    blocking: bool = True
 
     model_config = ConfigDict(frozen=True)
 
@@ -167,15 +172,29 @@ def windows_to_compare(keyframes: list[CropKeyframe], frame: int) -> list[CropKe
     ]
 
 
-def _frames(items: list[int], limit: int = 8) -> str:
+def frame_list(items: list[int], limit: int = 8) -> str:
     """Write a list of frames for the report: how many, then the first `limit` of them.
 
-    >>> _frames([])
-    '0'
-    >>> _frames([96, 167])
-    '2 (96, 167)'
-    >>> _frames(list(range(10)))
-    '10 (0, 1, 2, 3, 4, 5, 6, 7, ...)'
+    Used in the values of `verify_clip` and of the caption checks (`caption_checks.py`),
+    so a long list of frames fits on one line of the `verify-clip` report.
+
+    Args:
+        items: Frame indices, in the order to show them.
+        limit: Most frames written out; the rest become `...`. 8 by default.
+
+    Returns:
+        `"0"` for an empty list, otherwise the count and the first frames in brackets.
+
+    Example:
+        Test stretch, with captions: 1002 frames leave the safe zone, written
+        `1002 (2, 3, 4, 5, 6, 7, 8, 9, ...)`.
+
+        >>> frame_list([])
+        '0'
+        >>> frame_list([96, 167])
+        '2 (96, 167)'
+        >>> frame_list(list(range(10)))
+        '10 (0, 1, 2, 3, 4, 5, 6, 7, ...)'
     """
     shown = ", ".join(str(i) for i in items[:limit])
     return f"{len(items)} ({shown}{', ...' if len(items) > limit else ''})" if items else "0"
@@ -237,7 +256,7 @@ def verify_clip(
         >>> cuts = [96, 167, 201, 380, 460, 532, 721, 803, 904]
         >>> checks = verify_clip(info, matches, path, cut_frames=cuts)
         >>> checks[3]
-        Check(name='audio sync', value='9.3 ms', limit='<= 33.3 ms', ok=True)
+        Check(name='audio sync', value='9.3 ms', limit='<= 33.3 ms', ok=True, blocking=True)
         >>> sum(check.ok for check in checks)
         10
     """
@@ -276,7 +295,7 @@ def verify_clip(
     checks.append(
         Check(
             name="frames on their window",
-            value=f"{_frames(off_frames)} off",
+            value=f"{frame_list(off_frames)} off",
             limit="0 off",
             ok=not off_frames and len(matches) == path.frames,
         )
@@ -312,7 +331,8 @@ def verify_clip(
             Check(
                 name="face inside window",
                 value=(
-                    f"{_frames(path.face_cut_frames)} frames over; worst {path.worst_face_cut:.1%}"
+                    f"{frame_list(path.face_cut_frames)} frames over; "
+                    f"worst {path.worst_face_cut:.1%}"
                 ),
                 limit=(
                     f"0 frames over {FACE_CROP_TOLERANCE:.0%} per side "
@@ -322,13 +342,13 @@ def verify_clip(
             ),
             Check(
                 name="jumps outside cuts",
-                value=f"{_frames(path.jumps)}; largest {path.largest_move_px:.1f} px",
+                value=f"{frame_list(path.jumps)}; largest {path.largest_move_px:.1f} px",
                 limit=f"0 over {MAX_SPEED_PX_S / fps:g} px/frame",
                 ok=not path.jumps,
             ),
             Check(
                 name="wobbles",
-                value=_frames(path.wobbles),
+                value=frame_list(path.wobbles),
                 limit="0",
                 ok=not path.wobbles,
             ),

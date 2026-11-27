@@ -16,6 +16,7 @@ from itertools import pairwise
 from pydantic import BaseModel, ConfigDict, Field
 
 from content_engine.piece_types.clip.domain.faces import FaceBox
+from content_engine.piece_types.clip.domain.timeline import ms_to_frame
 
 DEAD_ZONE_RATIO = 0.10
 """Central part of the window where face moves do not move the camera, as a share of its side.
@@ -267,10 +268,11 @@ def place_window(
 def cut_at_frames(cut_at_ms: list[int], duration_ms: int, fps: int = 30) -> list[int]:
     """Return the mezzanine frames where the image cuts to another shot.
 
-    Each cut goes to frame round(ms x 30 / 1000), the same rounding the mezzanine uses
-    to cut its stretches (docs/03 §5.2 and §5.3). Cuts at 0 ms or at `duration_ms` and
-    later are ignored, and two cuts on the same frame count once. `camera_path` and
-    `verify-clip` both use it, so they put the cuts on the same frames.
+    Each cut goes to frame round(ms x 30 / 1000) (`ms_to_frame`), the same rounding the
+    mezzanine uses to cut its stretches (docs/03 §5.2 and §5.3). Cuts at 0 ms or at
+    `duration_ms` and later are ignored, and two cuts on the same frame count once.
+    `camera_path`, `captions` and `verify-clip` all use it, so they put the cuts on the
+    same frames.
 
     Args:
         cut_at_ms: Clip times where the image jumps to the next stretch
@@ -291,7 +293,7 @@ def cut_at_frames(cut_at_ms: list[int], duration_ms: int, fps: int = 30) -> list
         >>> cut_at_frames([0, 3206, 33476], duration_ms=33476)
         [96]
     """
-    return sorted({round(ms * fps / 1000) for ms in cut_at_ms if 0 < ms < duration_ms})
+    return sorted({ms_to_frame(ms, fps) for ms in cut_at_ms if 0 < ms < duration_ms})
 
 
 def cut_frame_starts_ms(cut_frames: list[int], fps: int = 30) -> list[int]:
@@ -636,8 +638,8 @@ def camera_path(
 ) -> CameraPath:
     """Build one crop keyframe per mezzanine frame that follows the face without shaking.
 
-    There are round(duration_ms x 30 / 1000) frames, the same rounding the
-    mezzanine uses to cut its stretches (docs/03 §5.2), and frame n starts at
+    There are round(duration_ms x 30 / 1000) frames (`ms_to_frame`), the same
+    rounding the mezzanine uses to cut its stretches (docs/03 §5.2), and frame n starts at
     round(n x 1000 / 30) ms. On each frame:
 
     1. The face comes from `face_at`. Each cut is moved to the start of its
@@ -720,7 +722,7 @@ def camera_path(
 
     keyframes: list[CropKeyframe] = []
     # Same rounding as the mezzanine (ffmpeg_args.frame_counts): one keyframe per real frame.
-    for frame in range(round(duration_ms * fps / 1000)):
+    for frame in range(ms_to_frame(duration_ms, fps)):
         t_ms = round(frame * 1000 / fps)
         face = face_at(faces, t_ms, cut_frame_ms)
         is_cut = frame in cut_frames

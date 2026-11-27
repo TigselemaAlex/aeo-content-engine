@@ -86,7 +86,7 @@ La columna **Bloque** es el del requerimiento. Los valores por defecto salen de 
 | `hook` | Apertura y cierre | `max_seconds`, `text_on_screen`, `emphasize_keyword`, `keyword_style` (color, escala), `allow_cold_open` | 3 s, sí, sí, color de acento, sí | Claude, subtítulos |
 | `pacing` | Ritmo | `visual_change_every_s` [mín, máx], `max_static_s`, `pause_max_ms`, `keep_emphasis_pauses`, `remove_fillers`, `j_cut_frames` [mín, máx], `cut_bridge` (`none`, `punch_in`) | [2, 3], 4, 500, sí, sí, [3, 5], `punch_in` | Timeline, encuadre |
 | `camera_framing` | Visual | `layout` (`speaker_crop`, `fit_blur`), `keep_face_visible`, `zoom.enabled`, `zoom.max_scale`, `zoom.ease_s` [mín, máx] | `speaker_crop`, sí, sí, 1.15, [1, 2] | Encuadre |
-| `captions` | Subtítulos | `font_asset_id`, `size_px`, `text_color`, `background`, `outline`, `highlight.mode` (`word`, `keywords`, `none`), `highlight.color`, `position` (`lower_third`), `max_words_per_line`, `max_lines`, `uppercase`, `animation_in` (`pop`, `fade`, `none`), `avoid_face`, `platform_safe_zone` | sans serif, tercio inferior, 1 línea, entrada pop, sin salida, zona segura | Subtítulos |
+| `captions` | Subtítulos | `font_asset_id`, `size_px`, `text_color`, `background`, `outline`, `highlight.mode` (`word`, `keywords`, `none`), `highlight.color`, `position` (`lower_third`), `max_words_per_line`, `max_chars_per_line`, `max_lines`, `uppercase`, `animation_in` (`pop`, `fade`, `none`), `avoid_face`, `platform_safe_zone` | sans serif, tercio inferior, 1 línea, entrada pop, sin salida, zona segura | Subtítulos |
 | `fonts_colors` | Marca | `font_asset_ids`, `palette` (nombre → HEX), `forbidden_fonts` | — | Subtítulos, hook, tarjeta final |
 | `logo` | Marca | `asset_id`, `position`, `width_pct`, `margin_pct`, `visibility` (`always`, `none`) | `none` hasta que el cliente lo defina | Composición |
 | `broll_assets` | Visual | `enabled`, `sources`, `darken_under_text` | apagado (P1) | — en el MVP |
@@ -99,7 +99,7 @@ La columna **Bloque** es el del requerimiento. Los valores por defecto salen de 
 | `delivery` | — | — (solo `rules`) | — | Paquete |
 | `never_do` | Prohibido | lista con `check` | — | Todo |
 
-Ejemplo, Guidepost aplicado a este modelo: `music_sound.sfx.enabled = false` y `pacing.cut_bridge = "punch_in"` ("bridge cuts with subtle reframing"). En `captions` van Figtree, `text_color #FF7B2A` y `background.color #000000`. En `fonts_colors.forbidden_fonts` va `["Phudu"]`. `logo`, `hook` y `export.resolution` quedan `to_confirm` y usan las reglas base.
+Ejemplo, Guidepost aplicado a este modelo: `music_sound.sfx.enabled = false` y `pacing.cut_bridge = "punch_in"` ("bridge cuts with subtle reframing"). En `captions` van Figtree, `text_color #FF7B2A` y `background.color #000000`, y desde la T2.4 (elegidos por Alex sobre el tramo de prueba) `size_px 72` en Bold, `highlight.mode word` con `highlight.color #FFFFFF`, `max_words_per_line 4`, `max_chars_per_line 22` y `uppercase false` (§5.4). En `fonts_colors.forbidden_fonts` va `["Phudu"]`. Con `avoid_face`, `position lower_third` se resuelve como "debajo de la cara", y `platform_safe_zone` solo avisa cuando la cara no deja lugar (§5.4, §5.7). En la Fase 0 el estilo de los subtítulos está fijo en `CaptionStyle` (`captions_ass.py`), que además usa valores que la tabla todavía no lista: `bold`, `box_padding_px` (18), `pop_from` (0,8), `pop_ms` (80) y `face_gap_px` (20). El Edit Spec lo alimenta desde la Fase 1; si esos valores pasan a ser parámetros del spec, se agregan a la fila `captions`. `logo`, `hook` y `export.resolution` quedan `to_confirm` y usan las reglas base.
 
 ### 2.4 Lo que el MVP no aplica aunque esté en el Edit Spec
 
@@ -262,11 +262,23 @@ Resultado: una lista de *keyframes* de recorte `(t, x, y, w, h)`, los tramos sin
 
 | Elemento | Cómo |
 | --- | --- |
-| Subtítulos | Archivo ASS generado desde las palabras y el mapa de tiempos. Agrupa por `max_words_per_line`, puntuación y pausas. Resalta palabra por palabra o solo `caption_keyword`, según `highlight.mode`. Entrada pop (escala 80 % → 100 % en ~80 ms), sin salida. Fondo de caja si `background.enabled`. Se ubica en el tercio inferior, dentro de la zona segura de las plataformas y por debajo de la cara. |
+| Subtítulos | Archivo ASS generado desde las palabras y el mapa de tiempos. Agrupa por `max_words_per_line`, puntuación y pausas. Resalta palabra por palabra o solo `caption_keyword`, según `highlight.mode`. Entrada pop (escala 80 % → 100 % en ~80 ms), sin salida. Fondo de caja si `background.enabled`. Se ubica en el tercio inferior por debajo de la cara (20 px bajo la barbilla); si eso la saca de la zona segura de las plataformas, gana la cara y la zona segura solo avisa (§5.7). Detalle en "Subtítulos (T2.4)", debajo de esta tabla. |
 | Hook | Capa ASS de 0 a `hook.max_seconds` con `hook.text`; las `keywords` usan `keyword_style`. |
 | Logo | PNG escalado a `width_pct` × 1080 px en `position` con `margin_pct`. |
 | Tarjeta final | Si `end_card.enabled`: PNG renderizado con Playwright desde la plantilla del cliente (mismo motor que carruseles). |
-| Fuentes | Las del cliente se copian a una carpeta de fuentes del render; si falta una, el paso falla (no cae en una fuente por defecto). |
+| Fuentes | Las del cliente se copian a una carpeta de fuentes del render; si falta una, el paso falla (no cae en una fuente por defecto). En la Fase 0 la carpeta es `worker/assets/fonts/` (Figtree-Bold.ttf v2.0.3 de erikdkennedy/figtree con su `OFL.txt`; la licencia OFL 1.1 permite versionarla junto a su licencia), que `compose` copia a su carpeta temporal y pasa al filtro `ass` con `fontsdir`. libass **no falla** si falta la fuente: cae en otra del sistema (`(Figtreee, 700, 0) -> Arial-BoldMT`, medido el 26 nov 2026). Por eso `compose` dibuja antes los subtítulos en chico (270x480), lee qué fuente eligió libass (`fontselect`, visible con `-v debug`) y se detiene si no es de la familia del estilo o, si el estilo es negrita, si el nombre de la fuente elegida no dice Bold, SemiBold, ExtraBold, Black o Heavy (libass simularía la negrita con la regular; decidido por Alex el 26 nov 2026). El estilo se lee del propio ASS. |
+
+**Subtítulos (T2.4, 26 nov 2026).** El dominio (`captions_ass.py`) arma el ASS; el adaptador solo lo quema. Estilo de Guidepost elegido por Alex sobre fotogramas reales del tramo de prueba:
+
+1. **Palabras del clip:** las que no son muletillas y caben enteras en un tramo de audio (`Timeline.cuts`); su tiempo es el del mapa de tiempos del audio, así que los subtítulos siguen a la voz también en los J cuts ("you" se resalta en el fotograma 94 y la imagen cambia en el 96).
+2. **Frases y líneas:** una frase termina en puntuación de cierre, en cada corte del timeline (se quitó una muletilla o una pausa) o en un silencio de más de 500 ms (`pause_max_ms`). Cada frase se parte en la menor cantidad de líneas de hasta 4 palabras y 22 caracteres; entre las que tienen esa cantidad gana la de la línea más larga más corta ("you basically" / "don't exist.", 13 y 12, en vez de 22 y 3). Una palabra de más de 22 caracteres va sola. Tramo de prueba: 78 palabras en 27 líneas. 22 caracteres porque con Figtree Bold 72 'Answer Engine Optimization.' (27) mide 840 px, unos 840 ÷ 27 ≈ 31 px por carácter, y el ancho útil centrado en x = 540 sin la columna de botones de la derecha es 2 × (888 − 540) = 696 px: 696 ÷ 31 ≈ 22.
+3. **Tiempos:** cada palabra se resalta desde el fotograma más cercano a su inicio, `round(ms × 30 ÷ 1000)`, hasta el de la palabra siguiente; la última línea sigue hasta el final del clip. El evento ASS empieza medio fotograma antes, `(n − 0,5) ÷ 30` s, escrito en centésimas: libass lo muestra desde el primer fotograma en ese tiempo o después, y el medio fotograma absorbe el redondeo a centésimas (mismo motivo que `sendcmd`, §5.6). El desfase con el inicio de la palabra queda en ±½ fotograma (16,7 ms). Si dos palabras caen en el mismo fotograma (la transcripción completa tiene "a" de 16 ms), la primera no se resalta, pero se ve en la línea. Si ninguna palabra de una línea llega a tener su fotograma (por ejemplo, una línea de una sola palabra corta), la línea no se vería nunca: sus palabras pasan al principio de la línea siguiente, o al final de la anterior si es la última (decidido por Alex el 26 nov 2026), aunque esa línea pase de 4 palabras o 22 caracteres.
+4. **Resaltado y pop:** la palabra actual en blanco #FFFFFF, el resto en #FF7B2A, sobre caja negra (`BorderStyle 3`, 18 px de margen). La línea entra al 80 % y llega al 100 % en 80 ms; a 30 fps se ven 84 %, 92,5 % y 100 % (medido: 431, 477 y 518 px de ancho). Los eventos que empiezan dentro de los 80 ms siguen la misma curva.
+5. **Posición:** centrada en x = 540; cada línea, 20 px debajo de la barbilla más baja (borde inferior de la caja de la cara, en píxeles de salida) durante sus fotogramas, sin salir del cuadro. Sin ninguna caja de cara en todo el clip, la caja se apoya en el borde inferior de la zona segura; en un hueco sin cara, `face_at` mantiene la última caja y la línea sigue debajo de ella (cuando llegue `fit_blur` para los tramos sin cara, §5.3, habrá que revisarlo). En el tramo de prueba (primer plano) la barbilla llega a y = 1376–1680 según el fotograma; la más baja de cada línea va de 1483 a 1680, y como el centro de la caja es barbilla + 20 + 108 ÷ 2, los centros quedan entre 1483 + 74 = 1557 y 1680 + 74 = 1754. Los 108 px son la caja calculada (72 + 2 × 18); libass la dibuja de 110 (de centro − 55 a centro + 54, medido en las 27 líneas), así que el espacio medido con la barbilla es 19 px y el borde más bajo, 1809. Caen en la zona de botones: "nunca sobre la cara" (Guidepost) gana sobre "nada tapado por los botones" (reglas base), y `verify-clip` lo avisa sin fallar.
+6. **Zona segura orgánica** (aviso): arriba 160, abajo 400, izquierda 65, derecha 192 px sobre 1080x1920. De dónde sale cada uno: abajo, el valor más prudente de las guías orgánicas (400); derecha, la columna de botones de Google Shorts (192); izquierda, el 6 % de Meta Reels (1080 × 0,06 = 64,8 ≈ 65); arriba, la cifra de TikTok que citan las guías de anuncios (160), dentro del rango orgánico de 110–250. No hay números oficiales para publicaciones normales; los oficiales son de anuncios: Google Shorts arriba 288, abajo 672, izquierda 48, derecha 192; Meta Reels 14 % arriba, 35 % abajo y 6 % a los lados; TikTok publica una plantilla descargable. Las guías no oficiales dan abajo 320–400, arriba 110–250 y derecha 120–192.
+7. **Color:** el encabezado lleva `YCbCr Matrix: TV.709`. Sin esa línea, el filtro `ass` de FFmpeg 9.0.2 convierte los colores con la matriz BT.601 y en un clip BT.709 el naranja se ve #FF8124 (255, 129, 36, medido sin compresión); con ella, (254, 122, 41).
+
+Se descartaron, mirando fotogramas reales: la caja naranja invertida en la palabra actual (libass dibuja la caja por letra y se comía letras), agrandar la palabra (deforma la caja y mueve las vecinas), ExtraBold 80 en mayúsculas ('ANSWER ENGINE OPTIMIZATION.' pasa de 1080 px), los subtítulos encima de la cara (tapan frente y pelo) y fijos en el tercio inferior dentro de la zona segura (caja en y = 1410–1520: tapaban la barbilla en los 24 grupos de una primera agrupación de prueba).
 
 ### 5.5 Dos personas en el mismo plano
 
@@ -287,6 +299,7 @@ El recorte variable se hace con comandos de tiempo de FFmpeg (`sendcmd` sobre el
 - **La ventana cambia de tamaño** (92 tamaños y 208 cambios en el tramo de prueba) y `scale=1080:1920` se reconfigura con cada tamaño de entrada, así la salida queda fija; `setsar=1` evita que una ventana que no es exactamente 9:16 deje píxeles no cuadrados. Se descartaron sin medir escalar el cuadro entero con un factor variable y recortar fijo (el mismo mecanismo de reconfiguración, con hasta el doble de píxeles por fotograma) y PyAV (más lento y más código).
 - **Escala bicubic.** En el tramo de prueba (33,5 s, recortar + escalar + codificar): bilinear 6,0 s, bicubic 6,7 s, lanczos 8,1 s, spline 17,3 s; el detalle conservado (la salida reducida de nuevo y comparada con el recorte) fue 43,8, 45,4, 44,5 y 44,4 dB. Bicubic y lanczos no se distinguen en la cara; bilinear se ve apenas más blando.
 - **Codificación provisional:** CRF 18, preset `veryfast` (elegidos sin medir; la T2.7 mide el tiempo por clip). El audio se copia del intermedio hasta la T2.5 (loudness).
+- **Subtítulos** (desde la T2.4): con `--captions`, el filtro `ass=filename=captions.ass:fontsdir=fonts` va al final de la cadena, después de `format=yuv420p`, en el mismo comando; así los subtítulos se dibujan a 1080x1920 y no se recortan ni se escalan. El ASS y las fuentes se copian a la carpeta temporal, por el mismo problema del `:` de `C:/`. Tramo de prueba: `compose` tarda 12,4 s con subtítulos (incluye el render chico que confirma la fuente) y 7,5 s sin ellos.
 
 **Versión mínima: FFmpeg 9.** Con el FFmpeg 6.1.1 de Ubuntu 24.04, `crop` se cae (*segmentation fault*) o se cuelga cuando cambia de tamaño a mitad del video; mover la ventana sin cambiar su tamaño sí funciona (medido en el CI el 26 nov 2026). Las versiones 7 y 8 no se probaron: 9 es la más vieja que se vio funcionar, no un límite demostrado. El CI descarga una compilación fija de FFmpeg 9.0.2 con su sha256, y `compose_clip` falla con un mensaje claro si encuentra una versión menor en vez de colgarse. Una prueba de integración (`worker/tests/integration/test_compose_render.py`) renderiza un video sintético de FFmpeg y falla si se quita `exact=1` o si los comandos usan `t_ms`.
 
@@ -305,7 +318,19 @@ Desde la T2.3 el comando de desarrollo `verify-clip` mide el clip contra su cami
 | Saltos fuera de los cortes | ≤ 20 px por fotograma (600 px/s). También falla el salto de un empuje legítimo (la cara se movió más rápido que la cámara, §5.3): el clip tiene un movimiento brusco y alguien debe verlo (decidido el 26 nov 2026) | 0 (máx. 17 px) |
 | Vaivenes | 0 idas y vueltas a → b → a | 0 |
 
-La primera fila son tres comprobaciones (tamaño, fps y fotogramas): 10 en total. Para el parecido, cada fotograma de la salida se reduce al tamaño de su ventana y se compara (PSNR en gris) con el intermedio recortado en su keyframe y en los de sus vecinos. Además:
+La primera fila son tres comprobaciones (tamaño, fps y fotogramas): 10 en total. Para el parecido, cada fotograma de la salida se reduce al tamaño de su ventana y se compara (PSNR en gris) con el intermedio recortado en su keyframe y en los de sus vecinos.
+
+Con `--captions` (T2.4, aprobadas por Alex el 26 nov 2026) se suman 5, **15 en total**. El estilo (fuente, colores) se lee del propio ASS, no de valores por defecto, y lo esperado sale de la transcripción y del timeline, no del código que escribió los subtítulos. Se miden sobre lo que dibuja libass: FFmpeg dibuja el ASS solo, sobre un cuadro transparente de 1080x1920, y el filtro `bbox` da en cada fotograma la caja de todo lo dibujado (canal alfa) y la de la palabra resaltada (el canal de color donde el resaltado se separa del texto y la caja: azul, umbral (255 + 42) ÷ 2 = 148 para blanco sobre #FF7B2A). Ese render tarda entre 5 y 9 s en el tramo de prueba (4,95 s y 8,8 s en dos corridas del 26 nov 2026). Dos valores los eligió el desarrollador sin compararlos con otros: la tolerancia de 2 % del ancho para contar un cambio de palabra (el pop mueve el resaltado de 3,9 % a 3,7 % del ancho; pasar de "And" a "if" lo mueve a 28,8 %) y los 2 px de margen de la máscara (cubren el borrón del escalado; 0 y 1 px no se probaron).
+
+| Comprobación | Límite | Tramo de prueba |
+| --- | --- | --- |
+| Fuente | libass usó solo fuentes de la familia del estilo, negritas si el estilo es negrita, y ninguna de reemplazo | Figtree-Bold |
+| Palabras | las de las líneas son exactamente las palabras del rango que no son muletillas, en orden; ninguna fuera del clip | 78 de 78 |
+| Sincronía | cada palabra se pone blanca a ≤ ½ fotograma (16,7 ms) de su inicio en el clip (mapa de tiempos del timeline); el cambio se detecta en píxeles, relativo a la caja de la línea, para que el pop no cuente: aparece el resaltado, se mueve más del 2 % del ancho, la caja se achica o la caja cambia después de estar quieta. Dos líneas seguidas que dibujan exactamente la misma caja y el mismo resaltado no se distinguen. Sin palabras resaltadas (`highlight.mode none`) pasa | 78 palabras, media 8,7 ms, peor 16,7 ms (4 palabras que empiezan justo entre dos fotogramas: 8550, 11050, 17050 y 24150 ms, que dan x,5 fotogramas) |
+| Cara | 0 fotogramas en que la caja de los subtítulos se superponga a la de la cara | 0; lo más cerca, 19 px |
+| Zona segura | caja dentro de la zona orgánica (§5.4). **Solo avisa**: no hace fallar `verify-clip` | Aviso: 1002 fotogramas, borde más bajo 1809 px |
+
+Con subtítulos, el parecido de cada fotograma con su ventana deja afuera la caja de subtítulos medida en ese fotograma (más 2 px de margen), porque el intermedio no los tiene: sin eso el peor parecido caía a 20,1 dB y los puentes a 0/9; con la máscara, 43,8 dB y 9/9. `verify-clip` con subtítulos tarda ~52 s en el tramo de prueba (~44 s sin ellos, medidos el mismo día): de los ~8 s de más, ~5 s son el render de libass y el resto, la comparación con máscara. Además:
 
 - `ffprobe`: resolución, fps, códecs, duración dentro del rango, audio presente.
 - Decodificación completa sin errores y detección de cuadros congelados.
@@ -342,9 +367,9 @@ La agencia ya tiene un checklist antes de enviar (Pass 1 del editor y Pass 2 del
 | Exportación igual al spec (ratio, resolución, fps, audio, nombre) | `ffprobe` + loudness | auto |
 | Logo con el tamaño y la posición del spec | Lo coloca el render con los valores del spec; se registra en el plan | auto |
 | Subtítulos sin errores | El texto sale de la transcripción; los `caption_fixes` se validan; Haiku revisa nombres propios contra el glosario | auto + llm |
-| Subtítulos no tapados por los botones de la plataforma | Posición dentro de la zona segura | auto |
-| Subtítulos sincronizados | Tiempos tomados de las palabras a través del mapa de tiempos | auto |
-| Subtítulos que no tapan la cara | Caja de subtítulos vs caja de la cara | auto |
+| Subtítulos no tapados por los botones de la plataforma | Posición dentro de la zona segura; hoy solo avisa (§5.7) | auto |
+| Subtítulos sincronizados | Tiempos tomados de las palabras a través del mapa de tiempos; se mide en píxeles el fotograma en que cada palabra se resalta (≤ ½ fotograma, §5.7) | auto |
+| Subtítulos que no tapan la cara | Caja de subtítulos medida en cada fotograma vs caja de la cara (§5.7) | auto |
 | Fuentes y colores del cliente | El plan de render solo usa fuentes y colores del spec; `forbidden_fonts` | auto |
 | Hook en los primeros 3 s | Validación del JSON | auto |
 | Ritmo: sin silencios largos ni planos estáticos largos | Detección de silencios + intervalo entre cambios de encuadre ≤ `max_static_s` | auto |
@@ -389,7 +414,7 @@ El archivo de comandos de `sendcmd` no se guarda aquí: lo escribe el adaptador 
 | verify | 10–15 s |
 | **Total** | **~2–3 min por clip**; 6 clips con 3 en paralelo ≈ 5–8 min |
 
-Se mide en la Fase 0. Medido en la T2.3 sobre el tramo de prueba (33,5 s): `compose` solo con recorte, escala y codificación, ~7 s; `verify-clip`, que compara cada fotograma con su ventana, ~24 s, por encima de la fila verify (revisar en la T2.7 si en producción se compara una muestra de fotogramas). El resto lo mide la T2.7.
+Se mide en la Fase 0. Medido en la T2.3 sobre el tramo de prueba (33,5 s): `compose` solo con recorte, escala y codificación, ~7 s; `verify-clip`, que compara cada fotograma con su ventana, ~24 s, por encima de la fila verify (revisar en la T2.7 si en producción se compara una muestra de fotogramas). Medido en la T2.4 sobre el mismo tramo: armar el ASS (`captions`), menos de 1 s; `compose` con subtítulos, 12,4 s (7,5 s sin ellos, medido el mismo día); `verify-clip` con subtítulos, ~52 s (~44 s sin ellos el mismo día; de los ~8 s de más, ~5 s son el render de libass que mide los subtítulos y el resto, la comparación de fotogramas con máscara). El resto lo mide la T2.7.
 
 ---
 
@@ -399,14 +424,14 @@ Se mide en la Fase 0. Medido en la T2.3 sobre el tramo de prueba (33,5 s): `comp
 
 **Material:** una grabación propia del mismo tipo que los videos de Guidepost (una persona a cámara, grabación horizontal, en inglés) y el Edit Spec de Guidepost. La agencia no puede compartir videos de clientes por ahora (`00-resumen-decisiones.md`, "Material de prueba").
 
-**Forma:** comandos de línea de comandos en el worker, sin base de datos ni web (`python -m content_engine <comando>`): hoy uno por paso (`cut`, `detect-faces`, `camera-path`, `compose`, `verify-clip`); la T2.7 agrega `prototype`, que los encadena. La transcripción se pide una vez a AssemblyAI y se guarda en un archivo.
+**Forma:** comandos de línea de comandos en el worker, sin base de datos ni web (`python -m content_engine <comando>`): hoy uno por paso (`cut`, `detect-faces`, `camera-path`, `captions`, `compose`, `verify-clip`); la T2.7 agrega `prototype`, que los encadena. La transcripción se pide una vez a AssemblyAI y se guarda en un archivo.
 
 | # | Experimento | Criterio de éxito |
 | --- | --- | --- |
 | 1 | Timeline con muletillas, pausas y J cuts | Ningún corte se come una sílaba; los cortes no se notan al escucharlos |
 | 2 | Encuadre 16:9 → 9:16 con MediaPipe | La cara siempre completa; sin temblores; movimiento casi imperceptible en plano fijo |
 | 3 | Zooms y puentes de corte con recorte variable (`sendcmd`) | Movimiento fluido; si no, se prueba el plan B (PyAV). **Cumplido en la T2.3 con `sendcmd`** (`verify-clip` 10 de 10, §5.6–5.7) |
-| 4 | Subtítulos ASS en Figtree, naranja sobre negro, resaltado por palabra | Sincronía a simple vista; nunca sobre la cara |
+| 4 | Subtítulos ASS en Figtree, naranja sobre negro, resaltado por palabra | Sincronía a simple vista; nunca sobre la cara. **Cumplido en la T2.4**: Alex aprobó el video, y medido, 78 palabras a ≤ 16,7 ms y 0 fotogramas sobre la cara (§5.4, §5.7) |
 | 5 | Audio a −14 LUFS, sin sfx (Guidepost) | Medido con FFmpeg |
 | 6 | JSON de decisiones con Claude sobre 3 momentos reales | JSON válido sin intervención; hook dentro de 3 s; duración en rango |
 | 7 | Tiempo por clip | ≤ 3 min en la máquina del desarrollador |
@@ -424,6 +449,7 @@ Se mide en la Fase 0. Medido en la T2.3 sobre el tramo de prueba (33,5 s): `comp
 | "Cambio visual cada 2–3 s" con una sola cámara se vuelve repetitivo | Clips monótonos | Alternar puentes de corte y zooms; ajustar con la muestra aprobada |
 | Edit Specs con muchos campos "[To confirm]" | El resultado no coincide con lo que el cliente espera | Usar reglas base y mostrar los pendientes en la ficha del cliente |
 | Nombres de marca mal transcritos | Subtítulos con errores | Glosario del cliente a AssemblyAI + revisión con Haiku |
+| Grabación en primer plano: la cara llena el clip vertical | Los subtítulos, debajo de la cara, caen en la zona de botones de TikTok y Reels (tramo de prueba: borde más bajo 1809 px de 1920) | `verify-clip` lo avisa (§5.7). Revisar con el encuadre real de Kyle; si se repite, pedir un plano más abierto en la guía de grabación o decidir otra posición |
 | Dos personas o varias cámaras | Encuadre incorrecto | Fuera de la prioridad de la Fase 0; §5.5 para el mismo plano |
 
 ---

@@ -201,10 +201,42 @@ class Timeline(BaseModel):
             >>> timeline.to_clip_ms(1500) is None
             True
         """
+        found = self.locate(original_ms)
+        return None if found is None else found[1]
+
+    def locate(self, original_ms: int) -> tuple[int, int] | None:
+        """Return the audio cut that plays a time of the original video, and its clip time.
+
+        The time map behind `to_clip_ms`: it walks the cuts in play order and, for the
+        first one that contains `original_ms` (both ends included), returns its index
+        and the time it starts in the clip plus the offset inside it. The index lets
+        the captions keep a word whole inside one cut and break a line where a cut
+        joins the next (`words_in_clip`, `split_into_phrases`).
+
+        Args:
+            original_ms: A time in milliseconds of the original video.
+
+        Returns:
+            `(index in cuts, clip milliseconds)`, or `None` if that moment was cut out.
+
+        Example:
+            With cuts 0-1000 and 2000-3500 ms, 2500 ms is in the second cut (index 1),
+            which starts at 1000 ms in the clip: 1000 + (2500 - 2000) = 1500 ms. Test
+            stretch (words 29 to 108): "you" starts at 30974 ms, in the second cut
+            (30914-33264 ms), which starts at 29728 - 26655 = 3073 ms in the clip, so
+            it lands at (1, 3073 + 60) = (1, 3133).
+
+            >>> cuts = [Cut(start_ms=0, end_ms=1000), Cut(start_ms=2000, end_ms=3500)]
+            >>> Timeline(cuts=cuts, video_cuts=cuts).locate(2500)
+            (1, 1500)
+            >>> stretch = [Cut(start_ms=26655, end_ms=29728), Cut(start_ms=30914, end_ms=33264)]
+            >>> Timeline(cuts=stretch, video_cuts=stretch).locate(30974)
+            (1, 3133)
+        """
         cut_start_in_clip_ms = 0
-        for cut in self.cuts:
+        for k, cut in enumerate(self.cuts):
             if cut.start_ms <= original_ms <= cut.end_ms:
-                return cut_start_in_clip_ms + (original_ms - cut.start_ms)
+                return k, cut_start_in_clip_ms + (original_ms - cut.start_ms)
             cut_start_in_clip_ms += cut.end_ms - cut.start_ms
         return None
 
@@ -447,6 +479,35 @@ def frames_to_ms(frames: int, fps: int = 30) -> int:
         raise ValueError("fps must be positive")
 
     return round(frames * 1000 / fps)
+
+
+def ms_to_frame(ms: int, fps: int = 30) -> int:
+    """Return the frame whose start is nearest to a time: round(ms x fps / 1000).
+
+    The cut is ms x 30 / 1000 -> frame (the mezzanine and the clip run at 30 fps,
+    docs/03 §5.2), the inverse of `frames_to_ms`. A time exactly between two frame
+    starts is a tie, and Python's round() gives the even frame. The same rounding
+    places the cut frames (`cut_at_frames`), counts the keyframes of `camera_path`
+    (round(duration x 30 / 1000), as the mezzanine cuts its stretches) and puts each
+    caption word on its frame (`plan_captions`), so they all agree.
+
+    Args:
+        ms: A time in clip milliseconds.
+        fps: Frames per second. 30 by default (docs/03 §5.2).
+
+    Returns:
+        The index of the frame whose start is nearest to `ms`.
+
+    Example:
+        Test stretch (words 29 to 108): "if" starts at 365 ms, 365 x 30 / 1000 = 10.95
+        -> frame 11; the first cut, at 3206 ms, is 96.18 -> frame 96; "the" starts at
+        17050 ms, 511.5, a tie that goes to the even 512; the clip lasts 33476 ms,
+        1004.28 -> 1004 frames.
+
+        >>> ms_to_frame(365), ms_to_frame(3206), ms_to_frame(17050), ms_to_frame(33476)
+        (11, 96, 512, 1004)
+    """
+    return round(ms * fps / 1000)
 
 
 def add_j_cuts(cuts: list[Cut], j_cut_ms: int) -> list[Cut]:

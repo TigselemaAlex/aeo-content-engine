@@ -153,6 +153,27 @@ def test_compose_filter_crops_exactly_then_scales_to_vertical() -> None:
     )
 
 
+def test_compose_filter_burns_captions_after_the_scale() -> None:
+    first = CropKeyframe(t_ms=0, x=820, y=0, w=608, h=1080)
+
+    graph = compose_filter(first=first, commands_file="crop.cmd", captions_file="captions.ass")
+
+    assert graph.endswith(
+        "scale=1080:1920:flags=bicubic,setsar=1,format=yuv420p,"
+        "ass=filename=captions.ass:fontsdir=fonts[v]"
+    )
+
+
+def test_build_compose_args_passes_the_captions_to_the_filter() -> None:
+    first = CropKeyframe(t_ms=0, x=820, y=0, w=608, h=1080)
+
+    args = build_compose_args(
+        "mezzanine.mp4", first, "crop.cmd", "clip.mp4", captions_file="captions.ass"
+    )
+
+    assert "ass=filename=captions.ass:fontsdir=fonts" in args[args.index("-filter_complex") + 1]
+
+
 def test_build_compose_args_keeps_the_mezzanine_audio() -> None:
     first = CropKeyframe(t_ms=0, x=820, y=0, w=608, h=1080)
 

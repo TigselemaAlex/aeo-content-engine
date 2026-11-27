@@ -155,6 +155,7 @@ Así la pantalla de revisión se actualiza sola sin recargar.
 worker/
 ├── pyproject.toml
 ├── models/                           # modelos de ML versionados: blaze_face_short_range.tflite
+├── assets/fonts/                     # fuentes de los subtítulos de la Fase 0: Figtree-Bold.ttf + OFL.txt (en producción vienen de brand_assets)
 ├── prompts/                          # 05-prompts.md §6
 ├── evals/                            # 05-prompts.md §7
 ├── scripts/                          # herramientas de desarrollo fuera del paquete (p. ej. plot_camera_path.py)
@@ -185,13 +186,13 @@ worker/
     │   ├── post/  blog/  newsletter/  quote/  carousel/
     │   └── clip/
     │       ├── steps/                # decide, extract, analyze, compose, verify
-    │       └── domain/               # timeline, faces, camera_path, sendcmd, path_checks, verify, captions_ass, render_plan, ffmpeg_args
+    │       └── domain/               # timeline, faces, camera_path, sendcmd, path_checks, verify, captions_ass, caption_checks, render_plan, ffmpeg_args
     └── adapters/
         ├── db/                       # psycopg: repositorios y la cola
         ├── llm/anthropic.py
         ├── transcription/assemblyai.py
         ├── storage/s3.py
-        └── media/                    # ffmpeg.py, clip_probe.py, mediapipe_faces.py (pyright basic), face_preview.py, playwright_render.py
+        └── media/                    # ffmpeg.py, libass.py (subtítulos: copiar, medir, leer el registro), clip_probe.py, mediapipe_faces.py (pyright basic), face_preview.py, playwright_render.py
 ```
 
 ### 5.2 Reglas de dependencia
@@ -348,7 +349,7 @@ Un docstring se escribe para que se entienda la función **sin abrir su código*
 
 Si el agente no encuentra el origen en `docs/`, en el código o en las pruebas, lo pregunta. No lo inventa.
 
-**Fórmulas.** Se explican con la cuenta escrita paso a paso, usando los números de la grabación de prueba vigente y su tramo de referencia (`docs/00`, fila "Material de prueba"). Después va un *doctest*: una línea `>>>` que pytest ejecuta (`--doctest-modules` en `pyproject.toml`), así el ejemplo falla si la fórmula cambia. Los doctests van solo en código puro (`*/domain` y `shared/`); en adaptadores, `main.py` y `scripts/` el ejemplo va en prosa, sin `>>>`, porque leen disco, llaman a FFmpeg o a un proveedor.
+**Fórmulas.** Se explican con la cuenta escrita paso a paso, usando los números de la grabación de prueba vigente y su tramo de referencia (`docs/00`, fila "Material de prueba"). Después va un *doctest*: una línea `>>>` que pytest ejecuta (`--doctest-modules` en `pyproject.toml`), así el ejemplo falla si la fórmula cambia. Los doctests van solo en código puro (`*/domain` y `shared/`); en adaptadores, `main.py` y `scripts/` el ejemplo va en prosa, sin `>>>`, porque leen disco, llaman a FFmpeg o a un proveedor. Y solo en el docstring de un módulo, una clase o una función: el de una constante no es su `__doc__` y pytest no lo ejecuta (26 nov 2026, T2.4).
 
 **`Raises:`** lista solo los errores que lanza la función, o los que deja pasar a propósito, y cuándo los lanza.
 
