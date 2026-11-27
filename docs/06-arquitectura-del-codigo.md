@@ -155,6 +155,7 @@ Así la pantalla de revisión se actualiza sola sin recargar.
 worker/
 ├── pyproject.toml
 ├── models/                           # modelos de ML versionados: blaze_face_short_range.tflite
+├── assets/fonts/                     # fuentes de los subtítulos de la Fase 0: Figtree-Bold.ttf + OFL.txt (en producción vienen de brand_assets)
 ├── prompts/                          # 05-prompts.md §6
 ├── evals/                            # 05-prompts.md §7
 ├── scripts/                          # herramientas de desarrollo fuera del paquete (p. ej. plot_camera_path.py)
@@ -185,13 +186,13 @@ worker/
     │   ├── post/  blog/  newsletter/  quote/  carousel/
     │   └── clip/
     │       ├── steps/                # decide, extract, analyze, compose, verify
-    │       └── domain/               # timeline, faces, camera_path, sendcmd, path_checks, verify, captions_ass, render_plan, ffmpeg_args
+    │       └── domain/               # timeline, faces, camera_path, sendcmd, path_checks, verify, captions_ass, caption_checks, render_plan, ffmpeg_args
     └── adapters/
         ├── db/                       # psycopg: repositorios y la cola
         ├── llm/anthropic.py
         ├── transcription/assemblyai.py
         ├── storage/s3.py
-        └── media/                    # ffmpeg.py, clip_probe.py, mediapipe_faces.py (pyright basic), face_preview.py, playwright_render.py
+        └── media/                    # ffmpeg.py, libass.py (subtítulos: copiar, medir, leer el registro), clip_probe.py, mediapipe_faces.py (pyright basic), face_preview.py, playwright_render.py
 ```
 
 ### 5.2 Reglas de dependencia

@@ -260,10 +260,10 @@ La Fase 1 queda en 4 sprints (8 semanas) en lugar de las 4 a 5 semanas del resum
 **Qué vas a aprender:** el formato de subtítulos ASS y cómo FFmpeg los "quema" en el video.
 
 1. Leer la estructura de un archivo ASS: estilos (fuente, tamaño, colores) y eventos (texto con tiempo).
-2. Agrupar las palabras en líneas cortas (máx. 4 palabras), cortando en puntuación y pausas. ✔ Prueba con una frase larga.
+2. Agrupar las palabras en líneas cortas (máx. 4 palabras y, desde la T2.4, 22 caracteres), cortando en puntuación y pausas. ✔ Prueba con una frase larga.
 3. Pasar los tiempos por el **mapa de tiempos** del timeline (T1.5).
 4. Generar el resaltado de la palabra actual y la entrada tipo "pop".
-5. Ubicar los subtítulos en el tercio inferior, debajo de la cara y fuera de la zona de botones de la plataforma.
+5. Ubicar los subtítulos en el tercio inferior, debajo de la cara y fuera de la zona de botones de la plataforma. *Resuelto en la T2.4: 20 px debajo de la barbilla; cuando la cara no deja lugar (primer plano), gana "nunca sobre la cara" y la zona de botones solo se avisa (`03` §5.4).*
 6. Quemarlos con FFmpeg usando la fuente Figtree. ✔ Se ven sincronizados con la voz.
 
 **Terminaste cuando:** los subtítulos van sincronizados y nunca tapan la cara (experimento 4).
@@ -302,7 +302,7 @@ La Fase 1 queda en 4 sprints (8 semanas) en lugar de las 4 a 5 semanas del resum
 
 **Qué vas a construir:** un solo comando que va del video al clip final, y el informe de la Fase 0.
 
-1. Comando `prototype` que encadena: decisión de Claude → timeline → corte → caras → camino → subtítulos → composición → audio. Los pasos ya existen como comandos sueltos (`cut`, `detect-faces`, `camera-path`, `compose`, `verify-clip`); `prototype` los llama en orden.
+1. Comando `prototype` que encadena: decisión de Claude → timeline → corte → caras → camino → subtítulos → composición → audio. Los pasos ya existen como comandos sueltos (`cut`, `detect-faces`, `camera-path`, `captions`, `compose --captions`, `verify-clip --captions`); `prototype` los llama en orden. Las palabras `caption_keyword` de Claude (T2.6) se pasan a `captions --highlight keywords --keyword-word` si el spec usa ese modo (Guidepost usa `word`, `03` §5.4).
 2. Agregar el logo y el texto del hook si el spec lo pide.
 3. Medir cuánto tarda cada parte y fijar el CRF y el preset definitivos del clip (hoy 18 y `veryfast`, sin medir: `03` §5.6). ✔ Menos de 3 min por clip (experimento 7).
 4. Generar 3 clips y verlos en el celular, junto a la muestra aprobada.
@@ -600,6 +600,7 @@ Se planifican **cuando terminen la Fase 0 y la Fase 1**, con el mismo formato de
 - El requerimiento dice que la Fase 1 se aprueba con "las **12** piezas de texto". Con el mix actual son 8 (6 posts, 1 blog, 1 newsletter). Puede que cuenten también los copys de clips, carruseles y citas. Confirmarlo antes de la demo.
 - El formato AEO de blog y newsletter (`05-prompts.md` §1).
 - Los gráficos animados quedan fuera de alcance (`03-edicion-de-clips.md` §11).
+- El encuadre de grabación: en un primer plano la cara llena el clip vertical y los subtítulos, que van debajo de la cara, caen en la zona de botones de TikTok y Reels (T2.4, `03` §11). Ver si los videos reales de Kyle vienen más abiertos o si conviene pedirlo en la guía de grabación.
 
 ## Cobertura de la Fase 1
 

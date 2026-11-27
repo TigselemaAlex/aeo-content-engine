@@ -1,7 +1,8 @@
 """Build the FFmpeg arguments that cut the mezzanine and compose the vertical clip.
 
 Two commands: one cuts a timeline into the mezzanine (docs/03 §5.2), the other crops
-the mezzanine along the camera path and scales it to the 1080x1920 clip (docs/03 §5.6).
+the mezzanine along the camera path and scales it to the 1080x1920 clip (docs/03 §5.6),
+optionally burning an ASS captions file drawn in output pixels (docs/03 §5.4).
 Pure code: it only builds lists of strings; the media adapter runs FFmpeg. Cut times
 are milliseconds of the original video and FFmpeg receives them in seconds. Frame
 counts are frames of the mezzanine, which runs at a constant 30 fps, and crop windows
@@ -360,10 +361,53 @@ bicubic keeps the most detail for less time.
 """
 
 
-def compose_filter(first: CropKeyframe, commands_file: str) -> str:
+CAPTIONS_FILE = "captions.ass"
+"""Name the captions file gets in the temporary folder FFmpeg runs from.
+
+A bare relative name, because a Windows path such as `C:/...` breaks a filter option on
+its `:` (docs/03 §5.6); `stage_captions` copies the file there.
+"""
+
+CAPTION_FONTS_DIR = "fonts"
+"""Name the caption fonts folder gets in the temporary folder FFmpeg runs from.
+
+A bare relative name for the same reason as `CAPTIONS_FILE`; `stage_captions` copies
+the font files there.
+"""
+
+
+def captions_filter(captions_file: str = CAPTIONS_FILE, fonts_dir: str = CAPTION_FONTS_DIR) -> str:
+    """Build the `ass` filter that burns a captions file with the fonts of one folder.
+
+    Both paths must be bare relative names: a Windows path such as `C:/...` breaks the
+    filter on its `:`, so the adapter runs FFmpeg from a temporary folder (docs/03 §5.6).
+    `fontsdir` adds the fonts of that folder to the ones libass can pick. The compose
+    and `probe_captions` both use this filter, so the checks see what the clip gets.
+
+    Args:
+        captions_file: The ASS file, as a bare file name. `CAPTIONS_FILE` by default.
+        fonts_dir: The fonts folder, as a bare folder name. `CAPTION_FONTS_DIR` by
+            default.
+
+    Returns:
+        The filter, without a leading or trailing comma.
+
+    Example:
+        >>> captions_filter("captions.ass", "fonts")
+        'ass=filename=captions.ass:fontsdir=fonts'
+    """
+    return f"ass=filename={captions_file}:fontsdir={fonts_dir}"
+
+
+def compose_filter(
+    first: CropKeyframe,
+    commands_file: str,
+    captions_file: str | None = None,
+    fonts_dir: str = CAPTION_FONTS_DIR,
+) -> str:
     """Build the `-filter_complex` graph that crops along the camera path and scales to 9:16.
 
-    Four filters on the mezzanine video, in order:
+    Four filters on the mezzanine video, in order, and a fifth with captions:
 
     1. `sendcmd` reads the script of `crop_commands` and moves the crop window on
        every frame where it changes.
@@ -379,12 +423,19 @@ def compose_filter(first: CropKeyframe, commands_file: str) -> str:
        square: a 552x982 window is not exactly 9:16, and scale would otherwise mark
        the output with a non-square pixel shape to keep the window's proportions.
     4. `format=yuv420p`, the pixel format of the clip (docs/03 §5.6).
+    5. Only with `captions_file`: the `ass` filter of `captions_filter`, at the end of
+       the chain, so the captions are drawn at 1080x1920 and are never cropped or
+       scaled (docs/03 §5.6).
 
     Args:
         first: Crop window of frame 0, from `camera_path`.
         commands_file: Path of the `sendcmd` script, as FFmpeg reads it. `compose_clip`
             passes a bare file name, because a Windows path such as `C:/...` breaks
             the filter on its `:`.
+        captions_file: ASS file to burn after the scale (`captions_filter`), as a bare
+            file name. None adds no captions.
+        fonts_dir: Folder with the caption fonts, as a bare folder name.
+            `CAPTION_FONTS_DIR` by default; unused without `captions_file`.
 
     Returns:
         The graph, with the mezzanine as input `[0:v]` and the clip video as `[v]`.
@@ -400,16 +451,28 @@ def compose_filter(first: CropKeyframe, commands_file: str) -> str:
         scale=1080:1920:flags=bicubic
         setsar=1
         format=yuv420p[v]
+
+        With captions, the `ass` filter goes after `format=yuv420p`:
+
+        >>> compose_filter(first, "crop.cmd", "captions.ass").split(",")[-2:]
+        ['format=yuv420p', 'ass=filename=captions.ass:fontsdir=fonts[v]']
     """
+    captions = f",{captions_filter(captions_file, fonts_dir)}" if captions_file else ""
     return (
         f"[0:v]sendcmd=f={commands_file},"
         f"{CROP_FILTER}={first.w}:{first.h}:{first.x}:{first.y}:exact=1,"
-        f"scale={OUTPUT_W}:{OUTPUT_H}:flags={SCALE_FLAGS},setsar=1,format=yuv420p[v]"
+        f"scale={OUTPUT_W}:{OUTPUT_H}:flags={SCALE_FLAGS},setsar=1,format=yuv420p{captions}[v]"
     )
 
 
 def build_compose_args(
-    mezzanine: str, first: CropKeyframe, commands_file: str, output: str, fps: int = 30
+    mezzanine: str,
+    first: CropKeyframe,
+    commands_file: str,
+    output: str,
+    fps: int = 30,
+    captions_file: str | None = None,
+    fonts_dir: str = CAPTION_FONTS_DIR,
 ) -> list[str]:
     """Build the FFmpeg arguments that turn the mezzanine into the vertical clip.
 
@@ -426,9 +489,14 @@ def build_compose_args(
             `compose_filter`).
         output: Path of the clip to write.
         fps: Frame rate of the clip. 30 by default (docs/03 §5.6).
+        captions_file: ASS file to burn, as a bare file name (see `compose_filter`).
+            None adds no captions.
+        fonts_dir: Folder with the caption fonts, as a bare folder name.
+            `CAPTION_FONTS_DIR` by default; unused without `captions_file`.
 
     Returns:
-        The arguments to pass after the `ffmpeg` program name.
+        The arguments to pass after the `ffmpeg` program name. Captions only change
+        the `-filter_complex` graph.
 
     Example:
         >>> first = CropKeyframe(t_ms=0, x=820, y=0, w=608, h=1080)
@@ -445,7 +513,12 @@ def build_compose_args(
         "-i",
         mezzanine,
         "-filter_complex",
-        compose_filter(first=first, commands_file=commands_file),
+        compose_filter(
+            first=first,
+            commands_file=commands_file,
+            captions_file=captions_file,
+            fonts_dir=fonts_dir,
+        ),
         "-map",
         "[v]",
         "-map",
