@@ -23,7 +23,9 @@ Eres el revisor de codigo del Content Engine de AEO.co. Revisas contra las regla
 - Archivos de `apps/web/src/modules/*/server/` empiezan con `import 'server-only'`.
 - Lo del clip que deberia ser dominio puro (timeline, camino de camara, subtitulos ASS, plan de render, argumentos de FFmpeg) no quedo mezclado con la ejecucion de FFmpeg.
 - Un adaptador solo lee o ejecuta y convierte el resultado a tipos internos: cualquier decision (que comparar, que umbral, que descartar) va en `domain`, donde se prueba sin video (26 nov 2026: la eleccion de ventanas vecinas de `verify-clip` habia quedado en `clip_probe.py`).
-- Quien verifica un resultado reutiliza las funciones de conversion de quien lo produce (milisegundos a fotogramas, cortes...), nunca las reescribe (26 nov 2026: `check_path` repetia la cuenta de cortes de `camera_path`).
+- Quien verifica un resultado reutiliza las funciones de conversion de quien lo produce (milisegundos a fotogramas, cortes...), nunca las reescribe (26 nov 2026: `check_path` repetia la cuenta de cortes de `camera_path`; en la T2.4 se repitio tres veces mas). Las canonicas: `ms_to_frame` y `frames_to_ms` (`timeline.py`), `Timeline.locate`/`to_clip_ms` (mapa de tiempos), `command_time_s` (medio fotograma antes, `sendcmd.py`) y `face_box_px` (cara del intermedio en pixeles de salida, `captions_ass.py`).
+- Un `verify-*` mide contra la misma entrada que uso quien produjo (la lee del archivo producido, como el estilo del ASS), nunca contra valores por defecto; y lo esperado sale de una fuente independiente (la transcripcion y el timeline), no de la funcion que produjo (26 nov 2026, T2.4: `verify-clip` armaba `CaptionStyle()` y con `--highlight none` fallaba siempre).
+- Una deteccion por pixeles de `verify` se prueba tambien con la geometria que puede enganarla, no solo con el caso feliz (26 nov 2026, T2.4: dos lineas seguidas de una palabra no se detectaban como cambio).
 
 **2. Datos y permisos**
 
