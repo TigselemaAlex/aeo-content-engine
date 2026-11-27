@@ -44,8 +44,9 @@ _BBOX = re.compile(
 )
 """A box line of a named `bbox` filter: its name, the frame and x1, x2, y1, y2.
 
-As FFmpeg 9.0.2 prints it: `[bbox@caption @ 000001d76eb9e300] n:2 pts:2 ... x1:322
-x2:752 y1:1603 y2:1684 ...`. A frame where nothing passed the threshold has no `x1`.
+As FFmpeg 9.0.2 prints it, here for frame 2 of the test stretch (the first line entering
+at 84 %): `[bbox@caption @ ...] n:2 pts:2 ... x1:322 x2:752 y1:1596 y2:1677 ...`. A frame
+where nothing passed the threshold has no `x1`.
 """
 
 _FONTSELECT = re.compile(r"fontselect: \((.*), -?\d+, -?\d+\) -> .*, -?\d+, (.*)$")
@@ -105,9 +106,10 @@ def parse_caption_boxes(log: str, frames: int) -> list[CaptionFrame]:
         filter logged no box.
 
     Example:
-        From the FFmpeg 9.0.2 line `[bbox@caption @ 000001d76eb9e300] n:2 ... x1:322
-        x2:752 y1:1603 y2:1684 ...`, frame 2 gets the caption box x 322-752,
-        y 1603-1684, and frames 0 and 1, which logged no box, get None.
+        Test stretch: from the FFmpeg 9.0.2 line `[bbox@caption @ ...] n:2 ... x1:322
+        x2:752 y1:1596 y2:1677 ...`, frame 2 gets the caption box x 322-752,
+        y 1596-1677 (the first line, centered at y = 1642, entering at 84 %). Frames 0
+        and 1, before "And" starts, logged no box and get None.
     """
     boxes: dict[str, dict[int, Box]] = {"caption": {}, "highlight": {}}
     for found in _BBOX.finditer(log):

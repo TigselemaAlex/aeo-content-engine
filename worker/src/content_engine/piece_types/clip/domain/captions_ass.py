@@ -69,9 +69,12 @@ Top 160, bottom 400, left 65 and right 192 px (docs/03 §5.4, step 6). There are
 official numbers for organic posts, only for ads (Google Shorts: top 288, bottom 672,
 left 48, right 192; Meta Reels: 14 % top, 35 % bottom, 6 % on the sides); unofficial
 guides give bottom 320-400, top 110-250 and right 120-192 (docs/00, "Subtítulos palabra
-por palabra"). The right margin also sets the usable caption width, centered on x = 540:
-2 x (1080 - 192 - 540) = 696 px (`CaptionStyle.max_chars_per_line`). Inside the zone, a
-caption box spans x 65-888 and y 160-1520.
+por palabra"). Bottom is the most cautious value of the organic guides (400); right, the
+button column of Google Shorts (192); left, the 6 % of Meta Reels (1080 x 0.06 = 64.8,
+rounded to 65); top, the TikTok figure the ad guides give (160), inside the organic
+110-250 (docs/03 §5.4, step 6). The right margin also sets the usable caption width,
+centered on x = 540: 2 x (1080 - 192 - 540) = 696 px (`CaptionStyle.max_chars_per_line`).
+Inside the zone, a caption box spans x 65-888 and y 160-1520.
 """
 
 
@@ -110,8 +113,10 @@ class CaptionStyle(BaseModel):
             from 80 % to 100 % (docs/03 §5.4).
         pop_ms: How long the line takes to grow from `pop_from` to full size, in
             milliseconds, 0 or more. 80 (docs/03 §5.4).
-        face_gap_px: Space between the bottom of the face box and the top of the caption
-            box, in output pixels, 0 or more. 20: "20 px below the chin" (docs/03 §5.4).
+        face_gap_px: Space between the bottom of the face box and the top of the computed
+            caption box, in output pixels, 0 or more. 20: "20 px below the chin"
+            (docs/03 §5.4). libass draws the box 1 px higher (`box_height_px`), so the
+            gap measured by `verify-clip` is 19 px.
     """
 
     font_name: str = "Figtree"
@@ -136,6 +141,9 @@ class CaptionStyle(BaseModel):
 
         The font size plus the padding above and below the text. With the defaults,
         72 + 2 x 18 = 108 px, so the center of a box sits 108 // 2 = 54 px below its top.
+        This is the computed box that places the line; libass draws it 110 px tall, from
+        center - 55 to center + 54 (measured on the 27 lines of the test stretch,
+        docs/03 §5.4, step 5), 1 px more above and below.
 
         >>> CaptionStyle().box_height_px
         108
@@ -559,11 +567,13 @@ def line_center_y(
     Example:
         Test stretch: the first line ("And if your brand", frames 2 to 44) has its
         lowest chin at 1568, so its top is 1568 + 20 = 1588 and its center
-        1588 + 108 // 2 = 1642. Over the 27 lines the lowest chin goes from 1483 to
-        1680, and the centers from 1483 + 74 = 1557 to 1680 + 74 = 1754 (docs/03 §5.4,
-        step 5). Without faces the box ends at 1920 - 400 = 1520, so its top is
-        1520 - 108 = 1412 and its center 1412 + 54 = 1466. On frame 0 of the test
-        stretch alone, the chin at 1376 gives 1376 + 20 + 54 = 1450.
+        1588 + 108 // 2 = 1642. libass then draws that box from 1642 - 55 = 1587 to
+        1642 + 54 = 1696, so the free rows between the face and the box are 1568 to
+        1586: 19 px, the gap `verify-clip` measures. Over the 27 lines the lowest chin
+        goes from 1483 to 1680, and the centers from 1483 + 74 = 1557 to 1680 + 74 =
+        1754 (docs/03 §5.4, step 5). Without faces the box ends at 1920 - 400 = 1520,
+        so its top is 1520 - 108 = 1412 and its center 1412 + 54 = 1466. On frame 0 of
+        the test stretch alone, the chin at 1376 gives 1376 + 20 + 54 = 1450.
 
         >>> window = [CropKeyframe(t_ms=0, x=820, y=0, w=608, h=1080)]
         >>> face = FaceBox(t_ms=0, x=849, y=225, w=549, h=549, score=0.97)
@@ -811,8 +821,9 @@ def pop_tags(elapsed_ms: int, style: CaptionStyle) -> str:
         33 ms in: 100 x (0.80 + 0.20 x 33 / 80) = 88.25 %, written 88.2, with
         80 - 33 = 47 ms left. Each event starts half a frame early (`ass_time`), so
         at 30 fps a new line is drawn 16.7, 50 and 83.3 ms into the pop:
-        80 + 20 x 16.7 / 80 = 84 %, 92.5 % and 100 %. On the test stretch the first
-        line measures 430, 476 and 518 px wide on those frames (docs/03 §5.4).
+        80 + 20 x 16.7 / 80 = 84 %, 92.5 % and 100 %. On the test stretch libass draws
+        the first line 431, 477 and 518 px wide on those frames, both ends counted as in
+        `Box` (docs/03 §5.4, step 4).
 
         >>> "fscx88.2" in pop_tags(33, CaptionStyle())
         True
